@@ -104,16 +104,12 @@ namespace tfe::gui {
     void RaylibRenderer::draw(const tfe::core::Board& board) {
         ClearBackground(Theme::BG_COLOR);
         DrawText("2048", 20, 20, 40, Theme::TEXT_DARK);
-        // ĐÃ BỎ HẾT LOGIC SCORE Ở ĐÂY
 
         int size = board.getSize();
         const auto& grid = board.getGrid();
 
-        // VẼ BÀN CỜ TĨNH
         for (int r = 0; r < size; ++r) {
             for (int c = 0; c < size; ++c) {
-                // FIX BÓNG MA: Nếu ô này là đích đến của 1 tile đang trượt ->
-                // Không vẽ số
                 bool isDestination = false;
                 for (const auto& mt : movingTiles_) {
                     if (mt.destR == r && mt.destC == c) {
@@ -161,7 +157,6 @@ namespace tfe::gui {
             }
         }
 
-        // VẼ TILE ĐANG TRƯỢT (MOVING)
         for (const auto& mt : movingTiles_) {
             float currX = mt.startX + (mt.targetX - mt.startX) * mt.progress;
             float currY = mt.startY + (mt.targetY - mt.startY) * mt.progress;
