@@ -1,44 +1,97 @@
 #include "input-handler.h"
 
+#include <iostream>
+
+// --- WINDOWS SECTION ---
+#ifdef _WIN32
+#include <conio.h>
+#include <windows.h>
+
+namespace tfe::input {
+
+    InputHandler::InputHandler() { setRawMode(true); }
+    InputHandler::~InputHandler() { setRawMode(false); }
+
+    void InputHandler::setRawMode(bool enable) {
+        // On Windows using _getch(), no complex raw mode is needed
+        // Just hide the cursor for a cleaner interface
+        HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+        CONSOLE_CURSOR_INFO cursorInfo;
+        GetConsoleCursorInfo(hConsole, &cursorInfo);
+        cursorInfo.bVisible = !enable;
+        SetConsoleCursorInfo(hConsole, &cursorInfo);
+    }
+
+    InputHandler::InputCommand InputHandler::readInput() {
+        // _getch() blocks until a key is pressed
+        int c = _getch();
+
+        switch (c) {
+            case 'w':
+            case 'W':
+                return InputCommand::MoveUp;
+            case 's':
+            case 'S':
+                return InputCommand::MoveDown;
+            case 'a':
+            case 'A':
+                return InputCommand::MoveLeft;
+            case 'd':
+            case 'D':
+                return InputCommand::MoveRight;
+            case 'q':
+            case 'Q':
+                return InputCommand::Quit;
+
+            // Arrow keys on Windows return two codes: 0 or 224, followed by the key code
+            case 0:
+            case 224: {
+                int arrow = _getch();
+                switch (arrow) {
+                    case 72:
+                        return InputCommand::MoveUp;  // Up
+                    case 80:
+                        return InputCommand::MoveDown;  // Down
+                    case 75:
+                        return InputCommand::MoveLeft;  // Left
+                    case 77:
+                        return InputCommand::MoveRight;  // Right
+                }
+                return InputCommand::None;
+            }
+        }
+        return InputCommand::None;
+    }
+}  // namespace tfe::input
+
+// --- LINUX / MACOS SECTION ---
+#else
 #include <termios.h>
 #include <unistd.h>
 
 namespace tfe::input {
 
-    // Stores the original terminal settings to restore them when the game exits.
     static struct termios orig_termios;
 
-    // Constructor: enables raw mode when an InputHandler is created.
     InputHandler::InputHandler() { setRawMode(true); }
-
-    // Destructor: ensures raw mode is disabled when the InputHandler is destroyed.
     InputHandler::~InputHandler() { setRawMode(false); }
 
-    void InputHandler::setRawMode(const bool enable) {
+    void InputHandler::setRawMode(bool enable) {
         if (enable) {
-            // Get the current terminal attributes.
             tcgetattr(STDIN_FILENO, &orig_termios);
             struct termios raw = orig_termios;
-
-            // Disable echo (so typed characters don't appear) and
-            // canonical mode (to read input immediately instead of waiting for Enter).
             raw.c_lflag &= ~(ECHO | ICANON);
-
-            // Apply the new (raw) terminal settings.
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
         } else {
-            // Restore the original terminal settings.
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
         }
     }
 
     InputHandler::InputCommand InputHandler::readInput() {
         char c;
-        // Read 1 byte from standard input.
         if (read(STDIN_FILENO, &c, 1) == -1) return InputCommand::None;
 
         switch (c) {
-            // WASD controls
             case 'w':
                 return InputCommand::MoveUp;
             case 's':
@@ -47,18 +100,12 @@ namespace tfe::input {
                 return InputCommand::MoveLeft;
             case 'd':
                 return InputCommand::MoveRight;
-            // Quit command
             case 'q':
                 return InputCommand::Quit;
-
-            // Handle arrow keys, which send multi-byte ANSI escape sequences.
-            // The sequence for an arrow key is typically '\033' (Escape), followed by '[' and then A, B, C, or D.
             case '\033': {
                 char seq[2];
-                // Read the next two bytes of the sequence.
                 if (read(STDIN_FILENO, &seq[0], 1) == -1) return InputCommand::None;
                 if (read(STDIN_FILENO, &seq[1], 1) == -1) return InputCommand::None;
-
                 if (seq[0] == '[') {
                     switch (seq[1]) {
                         case 'A':
@@ -76,9 +123,8 @@ namespace tfe::input {
                 return InputCommand::None;
             }
             default:
-                // Any other key is ignored.
                 return InputCommand::None;
         }
     }
-
 }  // namespace tfe::input
+#endif
