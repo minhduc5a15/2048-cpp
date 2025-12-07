@@ -12,3 +12,6 @@ cmake-build-debug
 # OS generated
 .DS_Store
 Thumbs.db
+
+
+build.sh
