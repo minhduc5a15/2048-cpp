@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include "config.h"
 #include "utils/random-generator.h"
 
 namespace tfe::core {
@@ -149,7 +150,7 @@ namespace tfe::core {
 
         if (!emptyCells.empty()) {
             const int index = utils::RandomGenerator::getInt(0, static_cast<int>(emptyCells.size()) - 1);
-            const Tile val = utils::RandomGenerator::getBool(0.9) ? 2 : 4;
+            const Tile val = utils::RandomGenerator::getBool(Config::SPAWN_PROBABILITY_2) ? Config::TILE_VALUE_LOW : Config::TILE_VALUE_HIGH;
 
             const int r = emptyCells[index].first;
             const int c = emptyCells[index].second;

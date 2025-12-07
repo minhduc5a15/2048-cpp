@@ -20,6 +20,23 @@ namespace tfe::gui {
         static constexpr int BOARD_PADDING = 10;
         static constexpr int CELL_PADDING = 10;
 
+        // Header (Khoảng trống phía trên để vẽ điểm số/logo)
+        static constexpr int HEADER_HEIGHT = 100;
+
+        // Animation Settings
+        static constexpr int TARGET_FPS = 60;
+        static constexpr float ANIMATION_SPEED_SLIDE = 8.0f;
+        static constexpr float ANIMATION_SPEED_SCALE = 3.0f;
+
+        // Tile Rendering
+        static constexpr float TILE_ROUNDNESS = 0.1f;
+        static constexpr int TILE_ROUND_SEGMENTS = 6;
+
+        // Font Sizes
+        static constexpr int FONT_SIZE_SMALL = 30;   // Cho số >= 1000
+        static constexpr int FONT_SIZE_MEDIUM = 40;  // Cho số >= 100
+        static constexpr int FONT_SIZE_LARGE = 50;   // Cho số < 100
+
         // Helper lấy màu theo giá trị Tile
         static Color getTileColor(const int value) {
             switch (value) {

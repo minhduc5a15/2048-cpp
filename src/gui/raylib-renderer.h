@@ -26,10 +26,10 @@ namespace tfe::gui {
     public:
         RaylibRenderer();
         ~RaylibRenderer();
-        bool shouldClose() const;
+        static bool shouldClose() ;
 
         // Hàm draw gọn gàng, không cần tham số hiddenIds từ ngoài
-        void draw(const tfe::core::Board& board);
+        void draw(const tfe::core::Board& board) const;
 
         void updateAnimation(float dt);  // Xử lý tất cả animation (Slide, Scale, Pop)
 

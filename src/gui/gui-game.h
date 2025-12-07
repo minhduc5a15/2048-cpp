@@ -11,7 +11,7 @@ namespace tfe::gui {
 
     private:
         void update();
-        void draw();
+        void draw() const;
 
         tfe::core::Board board_;
         RaylibRenderer renderer_;

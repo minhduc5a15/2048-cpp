@@ -16,13 +16,13 @@ namespace tfe::gui {
     GuiGame::GuiGame() : board_(4), isGameOver_(false) {}
 
     void GuiGame::run() {
-        while (!renderer_.shouldClose()) {
+        while (!tfe::gui::RaylibRenderer::shouldClose()) {
             update();
             draw();
         }
     }
 
-    void GuiGame::draw() {
+    void GuiGame::draw() const {
         BeginDrawing();
         renderer_.draw(board_);
 

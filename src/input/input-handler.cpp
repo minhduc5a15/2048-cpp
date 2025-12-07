@@ -3,8 +3,6 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include <iostream>
-
 namespace tfe::input {
 
     // Lưu trạng thái terminal gốc để khôi phục khi thoát game
