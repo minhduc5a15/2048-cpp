@@ -17,4 +17,4 @@ namespace tfe::game {
         bool isRunning_;
     };
 
-} // namespace tfe::game
+}  // namespace tfe::game

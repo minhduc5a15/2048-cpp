@@ -16,4 +16,4 @@ namespace tfe::renderer {
         const char* resetColor();
     };
 
-} // namespace tfe::renderer
+}  // namespace tfe::renderer

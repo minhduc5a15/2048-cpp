@@ -1,7 +1,7 @@
 #pragma once
 #include <random>
 
-namespace tfe::utils { // tfe = twenty-four-eight
+namespace tfe::utils {  // tfe = twenty-four-eight
 
     class RandomGenerator {
     public:
@@ -15,4 +15,4 @@ namespace tfe::utils { // tfe = twenty-four-eight
         static std::mt19937& getEngine();
     };
 
-} // namespace tfe::utils
+}  // namespace tfe::utils

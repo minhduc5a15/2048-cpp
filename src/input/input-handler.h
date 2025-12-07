@@ -25,4 +25,4 @@ namespace tfe::input {
         void setRawMode(bool enable);
     };
 
-} // namespace tfe::input
+}  // namespace tfe::input

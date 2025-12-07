@@ -4,7 +4,7 @@ namespace tfe::utils {
 
     std::mt19937& RandomGenerator::getEngine() {
         static std::random_device rd;
-        static std::mt19937 engine(rd()); // Khởi tạo 1 lần duy nhất (static)
+        static std::mt19937 engine(rd());  // Khởi tạo 1 lần duy nhất (static)
         return engine;
     }
 
@@ -18,4 +18,4 @@ namespace tfe::utils {
         return dist(getEngine());
     }
 
-} // namespace tfe::utils
+}  // namespace tfe::utils

@@ -1,119 +1,182 @@
 #include "raylib-renderer.h"
-#include "raylib.h"
-#include "theme.h"
+
+#include <cmath>  // Cần cho pow
 #include <string>
 
+#include "raylib.h"
+#include "theme.h"
+
 namespace tfe::gui {
-    RaylibRenderer::RaylibRenderer()
-    {
-        InitWindow(Theme::SCREEN_WIDTH, Theme::SCREEN_HEIGHT, "2048 - C++ Raylib");
+
+    // Hiệu ứng nảy: Vượt quá 1.0 rồi thu lại
+    float RaylibRenderer::easeOutBack(float x) {
+        const float c1 = 1.70158f;
+        const float c3 = c1 + 1.0f;
+        return 1.0f + c3 * std::pow(x - 1.0f, 3.0f) +
+               c1 * std::pow(x - 1.0f, 2.0f);
+    }
+
+    // Hiệu ứng Pop: Phồng lên 1.2 rồi về 1.0
+    float RaylibRenderer::easePop(float x) {
+        if (x < 0.5f) return 1.0f + (x * 2.0f) * 0.2f;
+        return 1.2f - ((x - 0.5f) * 2.0f) * 0.2f;
+    }
+
+    // --- 2. LOGIC CHÍNH ---
+
+    RaylibRenderer::RaylibRenderer() {
+        InitWindow(Theme::SCREEN_WIDTH, Theme::SCREEN_HEIGHT,
+                   "2048 - C++ Raylib");
         SetTargetFPS(60);
 
-        // Tính kích thước ô: (Màn hình - Padding lề - Padding giữa các ô) / Số ô
         int boardSize = 4;
         float totalPadding =
             Theme::BOARD_PADDING * 2 + Theme::CELL_PADDING * (boardSize - 1);
         cellSize_ = (Theme::SCREEN_WIDTH - totalPadding) / boardSize;
-        cellScales_.assign(4, std::vector<float>(4, 1.0f));
+
+        // Khởi tạo lưới animation
+        cellAnims_.resize(4, std::vector<CellAnim>(4));
     }
 
     RaylibRenderer::~RaylibRenderer() { CloseWindow(); }
-
     bool RaylibRenderer::shouldClose() const { return WindowShouldClose(); }
 
-    void RaylibRenderer::draw(const tfe::core::Board& board)
-    {
+    float RaylibRenderer::getPixelX(int c) const {
+        return Theme::BOARD_PADDING + c * (cellSize_ + Theme::CELL_PADDING);
+    }
+    float RaylibRenderer::getPixelY(int r) const {
+        return 100 + r * (cellSize_ + Theme::CELL_PADDING);
+    }
+
+    // Trigger hiệu ứng Spawn (Zoom từ 0 lên 1)
+    void RaylibRenderer::triggerSpawn(int r, int c) {
+        if (r >= 0 && r < 4 && c >= 0 && c < 4)
+            cellAnims_[r][c] = {CellAnim::Spawn, 0.0f};
+    }
+
+    // Trigger hiệu ứng Merge (Pop lên 1.2)
+    void RaylibRenderer::triggerMerge(int r, int c) {
+        if (r >= 0 && r < 4 && c >= 0 && c < 4)
+            cellAnims_[r][c] = {CellAnim::Merge, 0.0f};
+    }
+
+    void RaylibRenderer::addMovingTile(int value, int id, int fromR, int fromC,
+                                       int toR, int toC) {
+        MovingTile tile;
+        tile.value = value;
+        tile.id = id;
+        tile.startX = getPixelX(fromC);
+        tile.startY = getPixelY(fromR);
+        tile.targetX = getPixelX(toC);
+        tile.targetY = getPixelY(toR);
+        tile.destR = toR;  // Lưu đích đến để ẩn ô tĩnh (chống bóng ma)
+        tile.destC = toC;
+        tile.progress = 0.0f;
+        movingTiles_.push_back(tile);
+    }
+
+    void RaylibRenderer::updateAnimation(float dt) {
+        // Update Slide
+        float slideSpeed = 8.0f;
+        for (auto it = movingTiles_.begin(); it != movingTiles_.end();) {
+            it->progress += slideSpeed * dt;
+            if (it->progress >= 1.0f)
+                it = movingTiles_.erase(it);
+            else
+                ++it;
+        }
+
+        // Update Scale (Spawn/Merge)
+        float scaleSpeed = 3.0f;  // Tốc độ zoom
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 4; ++c) {
+                auto& anim = cellAnims_[r][c];
+                if (anim.type != CellAnim::None) {
+                    anim.timer += scaleSpeed * dt;
+                    if (anim.timer >= 1.0f) {
+                        anim.type = CellAnim::None;
+                        anim.timer = 0.0f;
+                    }
+                }
+            }
+        }
+    }
+
+    void RaylibRenderer::draw(const tfe::core::Board& board) {
         ClearBackground(Theme::BG_COLOR);
+        DrawText("2048", 20, 20, 40, Theme::TEXT_DARK);
+        // ĐÃ BỎ HẾT LOGIC SCORE Ở ĐÂY
 
         int size = board.getSize();
         const auto& grid = board.getGrid();
 
-        // Vẽ Header
-        DrawText("2048", 20, 20, 40, Theme::TEXT_DARK);
+        // VẼ BÀN CỜ TĨNH
+        for (int r = 0; r < size; ++r) {
+            for (int c = 0; c < size; ++c) {
+                // FIX BÓNG MA: Nếu ô này là đích đến của 1 tile đang trượt ->
+                // Không vẽ số
+                bool isDestination = false;
+                for (const auto& mt : movingTiles_) {
+                    if (mt.destR == r && mt.destC == c) {
+                        isDestination = true;
+                        break;
+                    }
+                }
 
-        int startY = 100;
+                float px = getPixelX(c);
+                float py = getPixelY(r);
 
-        for (int r = 0; r < size; ++r)
-        {
-            for (int c = 0; c < size; ++c)
-            {
-                // 1. Tính toán tọa độ gốc của ô trên lưới
-                float originalX =
-                    Theme::BOARD_PADDING + c * (cellSize_ + Theme::CELL_PADDING);
-                float originalY = startY + r * (cellSize_ + Theme::CELL_PADDING);
+                // Luôn vẽ ô nền (Empty)
+                DrawRectangleRounded({px, py, cellSize_, cellSize_}, 0.1f, 6,
+                                     Theme::EMPTY_CELL_COLOR);
 
                 int val = grid[r][c];
+                if (val == 0 || isDestination) continue;
 
-                // 2. Lấy tỉ lệ scale hiện tại (cho hiệu ứng Animation)
-                // Lưu ý: cellScales_ được khởi tạo trong constructor và cập nhật ở
-                // updateAnimation
-                float scale = cellScales_[r][c];
+                // Tính toán Scale đàn hồi
+                float scale = 1.0f;
+                auto& anim = cellAnims_[r][c];
+                if (anim.type == CellAnim::Spawn)
+                    scale = easeOutBack(anim.timer);
+                else if (anim.type == CellAnim::Merge)
+                    scale = easePop(anim.timer);
 
-                // 3. Tính toán kích thước thực tế dựa trên scale
+                // Vẽ Tile
                 float currentSize = cellSize_ * scale;
-
-                // Tính offset để ô luôn nằm giữa tâm khi zoom (Center pivot)
                 float offset = (cellSize_ - currentSize) / 2.0f;
 
-                float drawX = originalX + offset;
-                float drawY = originalY + offset;
+                DrawRectangleRounded(
+                    {px + offset, py + offset, currentSize, currentSize}, 0.1f,
+                    6, Theme::getTileColor(val));
 
-                // 4. Vẽ ô nền (Background Tile)
-                Rectangle rect = {drawX, drawY, currentSize, currentSize};
-                Color color =
-                    (val == 0) ? Theme::EMPTY_CELL_COLOR : Theme::getTileColor(val);
+                // Vẽ Text (Scale theo tile)
+                std::string text = std::to_string(val);
+                int baseFontSize = (val < 100) ? 50 : (val < 1000) ? 40 : 30;
+                int fontSize = baseFontSize * scale;
+                if (fontSize < 1) fontSize = 1;
 
-                DrawRectangleRounded(rect, 0.1f, 6, color);
-
-                // 5. Vẽ số (Text)
-                if (val != 0)
-                {
-                    std::string text = std::to_string(val);
-
-                    // Font size gốc
-                    int baseFontSize = (val < 100) ? 50 : (val < 1000) ? 40 : 30;
-
-                    // Font size sau khi scale (để chữ cũng zoom theo ô)
-                    int currentFontSize = baseFontSize * scale;
-                    if (currentFontSize < 1)
-                        currentFontSize = 1; // Tránh lỗi size <= 0
-
-                    // Đo kích thước text MỚI để căn giữa
-                    int textWidth = MeasureText(text.c_str(), currentFontSize);
-
-                    int textX = drawX + (currentSize - textWidth) / 2;
-                    int textY = drawY + (currentSize - currentFontSize) / 2;
-
-                    DrawText(text.c_str(), textX, textY, currentFontSize,
-                             Theme::getTextColor(val));
-                }
+                int textW = MeasureText(text.c_str(), fontSize);
+                DrawText(text.c_str(), px + offset + (currentSize - textW) / 2,
+                         py + offset + (currentSize - fontSize) / 2, fontSize,
+                         Theme::getTextColor(val));
             }
         }
-    }
 
-    void RaylibRenderer::triggerSpawnAnimation(int r, int c)
-    {
-        if (r >= 0 && r < 4 && c >= 0 && c < 4)
-        {
-            cellScales_[r][c] = 0.0f; // Bắt đầu từ 0 để zoom lên
+        // VẼ TILE ĐANG TRƯỢT (MOVING)
+        for (const auto& mt : movingTiles_) {
+            float currX = mt.startX + (mt.targetX - mt.startX) * mt.progress;
+            float currY = mt.startY + (mt.targetY - mt.startY) * mt.progress;
+
+            Rectangle rect = {currX, currY, cellSize_, cellSize_};
+            DrawRectangleRounded(rect, 0.1f, 6, Theme::getTileColor(mt.value));
+
+            std::string text = std::to_string(mt.value);
+            int fontSize = (mt.value < 100) ? 50 : 40;
+            int textW = MeasureText(text.c_str(), fontSize);
+            DrawText(text.c_str(), currX + (cellSize_ - textW) / 2,
+                     currY + (cellSize_ - fontSize) / 2, fontSize,
+                     Theme::getTextColor(mt.value));
         }
     }
 
-    void RaylibRenderer::updateAnimation(float dt)
-    {
-        float speed = 10.0f;
-
-        for (int i = 0; i < 4; ++i)
-        {
-            for (int j = 0; j < 4; ++j)
-            {
-                if (cellScales_[i][j] < 1.0f)
-                {
-                    cellScales_[i][j] += speed * dt;
-                    if (cellScales_[i][j] > 1.0f)
-                        cellScales_[i][j] = 1.0f;
-                }
-            }
-        }
-    }
-} // namespace tfe::gui
+}  // namespace tfe::gui
