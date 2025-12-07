@@ -1,5 +1,6 @@
 #include "board.h"
 #include "config.h"
+#include "score/score-manager.h"
 #include "utils/random-generator.h"
 
 #include <algorithm>
@@ -18,7 +19,8 @@ namespace tfe::core {
      * @param size The size of one dimension of the square board.
      * @throws std::invalid_argument if the size is less than 2.
      */
-    Board::Board(const int size) : size_(size) {
+    Board::Board(const int size) : size_(size), score_(0), hasReachedWinTile_(false) {
+        highScore_ = tfe::score::ScoreManager::load_high_score();
         if (size < 2) throw std::invalid_argument("Board size must be at least 2x2");
         reset();
     }
@@ -34,6 +36,8 @@ namespace tfe::core {
         grid_.assign(size_, std::vector<Tile>(size_, 0));
         idGrid_.assign(size_, std::vector<int>(size_, 0));
         nextId_ = 1;
+        score_ = 0;
+        hasReachedWinTile_ = false;
         spawnRandomTile();
         spawnRandomTile();
     }
@@ -141,6 +145,18 @@ namespace tfe::core {
             if (row[i] != 0 && row[i] == row[i + 1]) {
                 row[i] *= 2;
                 row[i + 1] = 0;
+
+                // Update score and high score
+                score_ += row[i];
+                if (score_ > highScore_) {
+                    highScore_ = score_;
+                }
+
+                // Check for win condition
+                if (row[i] == Config::WINNING_TILE) {
+                    hasReachedWinTile_ = true;
+                }
+
                 idRow[i] = nextId_++;
                 idRow[i + 1] = 0;
             }
@@ -300,4 +316,10 @@ namespace tfe::core {
         // If no empty cells and no possible merges, the game is over.
         return true;
     }
+
+    int Board::getScore() const { return score_; }
+
+    int Board::getHighScore() const { return highScore_; }
+
+    bool Board::hasWon() const { return hasReachedWinTile_; }
 }  // namespace tfe::core

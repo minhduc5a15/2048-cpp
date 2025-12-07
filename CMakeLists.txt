@@ -4,6 +4,9 @@ project(Project2048 VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Pass the project's root directory to the source code as a macro
+add_compile_definitions(PROJECT_ROOT_DIR=${CMAKE_SOURCE_DIR})
+
 if(MSVC)
     add_compile_options(/W4)
 else()
@@ -20,6 +23,13 @@ FetchContent_Declare(
         URL https://github.com/raysan5/raylib/archive/refs/tags/5.5.tar.gz
 )
 FetchContent_MakeAvailable(raylib)
+
+FetchContent_Declare(
+        nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG "v3.11.3"
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
 enable_testing()
 

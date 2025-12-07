@@ -1,6 +1,7 @@
 #include "gui-game.h"
 #include "raylib.h"
 #include "theme.h"
+#include "score/score-manager.h"
 
 #include <map>
 
@@ -142,7 +143,10 @@ namespace tfe::gui {
             }
 
             // After a move, check if the game is over.
-            if (board_.isGameOver()) isGameOver_ = true;
+            if (!isGameOver_ && board_.isGameOver()) {
+                isGameOver_ = true;
+                tfe::score::ScoreManager::save_game(board_.getScore(), board_.hasWon());
+            }
         }
 
         // After any potential move, check if a new tile has spawned.

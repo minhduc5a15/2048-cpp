@@ -2,6 +2,7 @@
 
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #ifdef _WIN32
@@ -113,8 +114,11 @@ namespace tfe::renderer {
         const auto& grid = board.getGrid();
         const int size = board.getSize();
 
-        // Print the game title in bold.
-        std::cout << ANSI_BOLD << "   2048 - C++ Console Edition" << resetColor() << "\n\n";
+        // Build and print the header with score information
+        std::stringstream header;
+        header << ANSI_BOLD << "2048" << resetColor() << "   |   SCORE: " << board.getScore()
+               << "   |   BEST: " << board.getHighScore();
+        std::cout << header.str() << "\n\n";
 
         // Loop through each row and column to render the grid.
         for (int i = 0; i < size; ++i) {

@@ -165,8 +165,33 @@ namespace tfe::gui {
      */
     void RaylibRenderer::draw(const tfe::core::Board& board) const {
         ClearBackground(Theme::BG_COLOR);
-        DrawText("2048", 20, 20, 40, Theme::TEXT_DARK);
 
+        // --- Draw Header ---
+        DrawText("2048", Theme::BOARD_PADDING, 20, 60, Theme::TEXT_DARK);
+
+        // Helper lambda to draw a score box
+        auto drawScoreBox = [](float x, float y, float width, float height, const char* title, int score) {
+            DrawRectangleRounded({x, y, width, height}, 0.2f, 6, Theme::EMPTY_CELL_COLOR);
+            const int titleWidth = MeasureText(title, 16);
+            DrawText(title, x + (width - titleWidth) / 2, y + 10, 16, Theme::TEXT_DARK);
+
+            const std::string scoreText = std::to_string(score);
+            const int scoreWidth = MeasureText(scoreText.c_str(), 30);
+            DrawText(scoreText.c_str(), x + (width - scoreWidth) / 2, y + 35, 30, Theme::TEXT_LIGHT);
+        };
+
+        // Position and draw the score boxes
+        const float boxWidth = 120;
+        const float boxHeight = 60;
+        const float boxPadding = 10;
+        const float bestScoreX = Theme::SCREEN_WIDTH - Theme::BOARD_PADDING - boxWidth;
+        const float scoreX = bestScoreX - boxWidth - boxPadding;
+
+        drawScoreBox(scoreX, 20, boxWidth, boxHeight, "SCORE", board.getScore());
+        drawScoreBox(bestScoreX, 20, boxWidth, boxHeight, "BEST", board.getHighScore());
+
+
+        // --- Draw Game Grid ---
         const int size = board.getSize();
         const auto& grid = board.getGrid();
 

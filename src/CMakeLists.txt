@@ -1,4 +1,5 @@
 add_subdirectory(utils)
+add_subdirectory(score)
 add_subdirectory(core)
 add_subdirectory(renderer) # Console renderer
 add_subdirectory(input)

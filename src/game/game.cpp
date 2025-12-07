@@ -1,5 +1,7 @@
 #include "game.h"
 
+#include "score/score-manager.h"
+
 namespace tfe::game {
 
     /**
@@ -14,7 +16,7 @@ namespace tfe::game {
      *
      * This loop continues as long as the game is running. In each iteration, it:
      * 1. Renders the current state of the board to the console.
-     * 2. Checks if the game is over. If so, it displays the game over message and waits for input before exiting.
+     * 2. Checks if the game is over. If so, it saves the score, displays the game over message, and waits for input before exiting.
      * 3. Reads user input for the next move or to quit.
      * 4. Updates the game state based on the user's command (moving tiles or quitting).
      * After the loop ends (e.g., user quits), it cleans up the console screen.
@@ -26,6 +28,7 @@ namespace tfe::game {
 
             // 2. Check for game over condition.
             if (board_.isGameOver()) {
+                tfe::score::ScoreManager::save_game(board_.getScore(), board_.hasWon());
                 renderer_.showGameOver();
                 // Wait for any key press to exit or handle restart logic.
                 // For now, it just exits.

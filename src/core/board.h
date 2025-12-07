@@ -82,9 +82,31 @@ namespace tfe::core {
          */
         Position getLastSpawnPos() const { return lastSpawnPos_; }
 
+        /**
+         * @brief Gets the current score.
+         * @return The current score.
+         */
+        int getScore() const;
+
+        /**
+         * @brief Gets the current high score.
+         * @return The high score.
+         */
+        int getHighScore() const;
+
+        /**
+         * @brief Checks if the player has achieved the winning tile.
+         * @return True if the winning tile is on the board, false otherwise.
+         */
+        bool hasWon() const;
+
+
     private:
         int size_;   // The size of the board (size x size).
         Grid grid_;  // The 2D grid of tile values.
+        int score_;
+        int highScore_;
+        bool hasReachedWinTile_;
 
         std::vector<std::vector<int>> idGrid_; // Grid to track unique tile IDs for animations.
         int nextId_ = 1;                       // Counter for generating new unique tile IDs.
