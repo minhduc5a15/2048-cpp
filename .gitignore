@@ -1,0 +1,13 @@
+# Build directories
+build/
+out/
+bin/
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+
+# OS generated
+.DS_Store
+Thumbs.db
