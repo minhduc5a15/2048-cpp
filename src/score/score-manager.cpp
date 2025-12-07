@@ -6,7 +6,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <vector>
 
 // Helper macros to turn the PROJECT_ROOT_DIR macro into a string literal
 #define STRINGIFY(s) #s

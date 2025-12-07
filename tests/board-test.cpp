@@ -87,13 +87,13 @@ TEST(BoardTest, MoveUpBasic) {
     const bool moved = board.move(Direction::Up);
 
     EXPECT_TRUE(moved);
-    // Expect:
-    // 4 ...
-    // 0 ...
-    // 0 ...
-    // 0 ...
     EXPECT_EQ(board.getTile(0, 0), 4);
-    EXPECT_EQ(board.getTile(3, 0), 0);
+    int count = 0;
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            if (board.getTile(i, j) != 0) count++;
+
+    EXPECT_EQ(count, 2);
 }
 
 // 2. Test merging a full row: [2, 2, 2, 2] -> [4, 4, 0, 0]
@@ -108,7 +108,13 @@ TEST(BoardTest, MergeFullRow) {
 
     EXPECT_EQ(board.getTile(0, 0), 4);
     EXPECT_EQ(board.getTile(0, 1), 4);
-    EXPECT_EQ(board.getTile(0, 2), 0);  // Should not be 2
+
+    int count = 0;
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            if (board.getTile(i, j) != 0) count++;
+
+    EXPECT_EQ(count, 3);
 }
 
 // 3. Test moving over a gap: [2, 0, 2, 0] -> [4, 0, 0, 0]
