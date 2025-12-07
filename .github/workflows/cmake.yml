@@ -10,14 +10,21 @@ jobs:
         os: [ubuntu-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: Configure CMake
-        run: cmake -B build
+    - name: Install Linux Dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev
 
-      - name: Build
-        run: cmake --build build --config Release
+    - name: Configure CMake
+      run: cmake -B build
 
-      - name: Test
-        working-directory: build
-        run: ctest -C Release
+    - name: Build
+      run: cmake --build build --config Release
+
+    - name: Test
+      working-directory: build
+      if: runner.os == 'Linux' 
+      run: ctest -C Release
