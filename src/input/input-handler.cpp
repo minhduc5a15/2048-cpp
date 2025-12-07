@@ -5,32 +5,40 @@
 
 namespace tfe::input {
 
-    // Lưu trạng thái terminal gốc để khôi phục khi thoát game
+    // Stores the original terminal settings to restore them when the game exits.
     static struct termios orig_termios;
 
+    // Constructor: enables raw mode when an InputHandler is created.
     InputHandler::InputHandler() { setRawMode(true); }
 
+    // Destructor: ensures raw mode is disabled when the InputHandler is destroyed.
     InputHandler::~InputHandler() { setRawMode(false); }
 
     void InputHandler::setRawMode(const bool enable) {
         if (enable) {
+            // Get the current terminal attributes.
             tcgetattr(STDIN_FILENO, &orig_termios);
             struct termios raw = orig_termios;
-            // Tắt echo (không hiện ký tự khi gõ) và canonical mode (đọc ngay
-            // lập tức)
+
+            // Disable echo (so typed characters don't appear) and
+            // canonical mode (to read input immediately instead of waiting for Enter).
             raw.c_lflag &= ~(ECHO | ICANON);
+
+            // Apply the new (raw) terminal settings.
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
         } else {
+            // Restore the original terminal settings.
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
         }
     }
 
     InputHandler::InputCommand InputHandler::readInput() {
         char c;
-        // Đọc 1 byte từ stdin
+        // Read 1 byte from standard input.
         if (read(STDIN_FILENO, &c, 1) == -1) return InputCommand::None;
 
         switch (c) {
+            // WASD controls
             case 'w':
                 return InputCommand::MoveUp;
             case 's':
@@ -39,13 +47,18 @@ namespace tfe::input {
                 return InputCommand::MoveLeft;
             case 'd':
                 return InputCommand::MoveRight;
+            // Quit command
             case 'q':
                 return InputCommand::Quit;
-                // Xử lý phím mũi tên (ANSI escape sequence: ^[[A, ^[[B...)
+
+            // Handle arrow keys, which send multi-byte ANSI escape sequences.
+            // The sequence for an arrow key is typically '\033' (Escape), followed by '[' and then A, B, C, or D.
             case '\033': {
                 char seq[2];
+                // Read the next two bytes of the sequence.
                 if (read(STDIN_FILENO, &seq[0], 1) == -1) return InputCommand::None;
                 if (read(STDIN_FILENO, &seq[1], 1) == -1) return InputCommand::None;
+
                 if (seq[0] == '[') {
                     switch (seq[1]) {
                         case 'A':
@@ -63,6 +76,7 @@ namespace tfe::input {
                 return InputCommand::None;
             }
             default:
+                // Any other key is ignored.
                 return InputCommand::None;
         }
     }

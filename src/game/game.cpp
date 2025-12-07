@@ -1,26 +1,42 @@
 #include "game.h"
 
 namespace tfe::game {
+
+    /**
+     * @brief Constructor for the Game class.
+     *
+     * Initializes the game with a 4x4 board and sets the running state to true.
+     */
     Game::Game() : board_(4), isRunning_(true) {}
 
+    /**
+     * @brief Runs the main game loop for the console version.
+     *
+     * This loop continues as long as the game is running. In each iteration, it:
+     * 1. Renders the current state of the board to the console.
+     * 2. Checks if the game is over. If so, it displays the game over message and waits for input before exiting.
+     * 3. Reads user input for the next move or to quit.
+     * 4. Updates the game state based on the user's command (moving tiles or quitting).
+     * After the loop ends (e.g., user quits), it cleans up the console screen.
+     */
     void Game::run() {
         while (isRunning_) {
-            // 1. Render
+            // 1. Render the current board state.
             renderer_.render(board_);
 
-            // 2. Check Game Over
+            // 2. Check for game over condition.
             if (board_.isGameOver()) {
                 renderer_.showGameOver();
-                // Chờ người dùng nhấn phím bất kỳ để thoát hoặc xử lý logic
-                // restart (tạm thời thoát)
+                // Wait for any key press to exit or handle restart logic.
+                // For now, it just exits.
                 inputHandler_.readInput();
                 break;
             }
 
-            // 3. Input
+            // 3. Read user input.
             const auto command = inputHandler_.readInput();
 
-            // 4. Update Logic
+            // 4. Update game logic based on input.
             switch (command) {
                 case input::InputHandler::InputCommand::Quit:
                     isRunning_ = false;
@@ -38,13 +54,12 @@ namespace tfe::game {
                     board_.move(core::Direction::Right);
                     break;
                 default:
+                    // If the user presses an invalid key or a move doesn't change the board,
+                    // the loop will simply re-render and wait for the next input.
                     break;
             }
-
-            // Nếu người dùng bấm phím không hợp lệ hoặc di chuyển không tạo ra
-            // thay đổi, vòng lặp sẽ render lại và chờ tiếp.
         }
 
-        renderer_.clear();  // Dọn dẹp màn hình khi thoát
+        renderer_.clear();  // Clean up the screen on exit.
     }
 }  // namespace tfe::game

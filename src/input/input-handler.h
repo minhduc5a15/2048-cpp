@@ -2,18 +2,36 @@
 
 namespace tfe::input {
 
+    /**
+     * @class InputHandler
+     * @brief Handles raw keyboard input for the console application.
+     *
+     * This class is responsible for setting the terminal to raw mode to capture
+     * key presses without waiting for an Enter key, and then interpreting
+     * those key presses as game commands.
+     */
     class InputHandler {
     public:
         InputHandler();
         ~InputHandler();
 
-        // Trả về hướng di chuyển hoặc null nếu không phải phím điều hướng
-        // Trả về phương thức input để Game Loop xử lý
+        // Enum representing the high-level commands that can be issued by the user.
         enum class InputCommand { None, MoveUp, MoveDown, MoveLeft, MoveRight, Quit };
 
+        /**
+         * @brief Reads and interprets the next keyboard input from the user.
+         * @return The corresponding InputCommand for the key that was pressed.
+         */
         static InputCommand readInput();
 
     private:
+        /**
+         * @brief Enables or disables raw mode for the terminal.
+         *
+         * In raw mode, characters are read directly without buffering, allowing for
+         * immediate capture of keys like arrows.
+         * @param enable True to enable raw mode, false to disable it.
+         */
         static void setRawMode(bool enable);
     };
 
