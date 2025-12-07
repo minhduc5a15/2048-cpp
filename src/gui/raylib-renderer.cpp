@@ -135,7 +135,7 @@ namespace tfe::gui {
 
                 // Vẽ Text (Scale theo tile)
                 std::string text = std::to_string(val);
-                const int baseFontSize = (val < 100) ? 50 : (val < 1000) ? 40 : 30;
+                const int baseFontSize = (val < 100) ? Theme::FONT_SIZE_LARGE : (val < 1000) ? Theme::FONT_SIZE_MEDIUM : Theme::FONT_SIZE_SMALL;
                 int fontSize = baseFontSize * scale;
                 if (fontSize < 1) fontSize = 1;
 
