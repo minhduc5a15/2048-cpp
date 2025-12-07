@@ -2,6 +2,7 @@
 build/
 out/
 bin/
+cmake-build-debug
 
 # IDE settings
 .vscode/
