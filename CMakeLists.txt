@@ -4,9 +4,6 @@ project(Project2048 VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Pass the project's root directory to the source code as a macro
-add_compile_definitions(PROJECT_ROOT_DIR=${CMAKE_SOURCE_DIR})
-
 if(MSVC)
     add_compile_options(/W4)
 else()

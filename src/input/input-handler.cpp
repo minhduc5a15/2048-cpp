@@ -23,6 +23,10 @@ namespace tfe::input {
     }
 
     InputHandler::InputCommand InputHandler::readInput() {
+        if (!_kbhit()) {
+            return InputCommand::None;  // No key was pressed
+        }
+
         // _getch() blocks until a key is pressed
         int c = _getch();
 
@@ -66,6 +70,7 @@ namespace tfe::input {
 
 // --- LINUX / MACOS SECTION ---
 #else
+#include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -76,7 +81,7 @@ namespace tfe::input {
     InputHandler::InputHandler() { setRawMode(true); }
     InputHandler::~InputHandler() { setRawMode(false); }
 
-    void InputHandler::setRawMode(bool enable) {
+    void InputHandler::setRawMode(const bool enable) {
         if (enable) {
             tcgetattr(STDIN_FILENO, &orig_termios);
             struct termios raw = orig_termios;
@@ -88,6 +93,21 @@ namespace tfe::input {
     }
 
     InputHandler::InputCommand InputHandler::readInput() {
+        // Use select() to check for input without blocking.
+        fd_set fds;
+        FD_ZERO(&fds);
+        FD_SET(STDIN_FILENO, &fds);
+
+        struct timeval timeout{};
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 0;
+
+        int ready = select(STDIN_FILENO + 1, &fds, nullptr, nullptr, &timeout);
+        if (ready <= 0) {
+            // Nothing to read, or an error occurred.
+            return InputCommand::None;
+        }
+
         char c;
         if (read(STDIN_FILENO, &c, 1) == -1) return InputCommand::None;
 

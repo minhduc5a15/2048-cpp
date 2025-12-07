@@ -207,16 +207,12 @@ namespace tfe::core {
      * implement "move up" and "move down".
      */
     void Board::transpose() {
-        Grid newGrid(size_, std::vector<Tile>(size_, 0));
-        std::vector<std::vector<int>> newIdGrid(size_, std::vector<int>(size_, 0));
         for (int i = 0; i < size_; ++i) {
-            for (int j = 0; j < size_; ++j) {
-                newGrid[i][j] = grid_[j][i];
-                newIdGrid[i][j] = idGrid_[j][i];
+            for (int j = i + 1; j < size_; ++j) {
+                std::swap(grid_[i][j], grid_[j][i]);
+                std::swap(idGrid_[i][j], idGrid_[j][i]);
             }
         }
-        grid_ = newGrid;
-        idGrid_ = newIdGrid;
     }
 
     /**
