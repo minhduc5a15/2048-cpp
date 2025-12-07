@@ -1,0 +1,16 @@
+BasedOnStyle: Google
+
+IndentWidth: 4
+NamespaceIndentation: All
+
+FixNamespaceComments: true
+
+AccessModifierOffset: -4
+
+BraceWrapping:
+  AfterEnum: true
+  AfterClass: true
+  AfterStruct: true
+  AfterControlStatement: true
+  AfterFunction: true
+  BeforeElse: true
