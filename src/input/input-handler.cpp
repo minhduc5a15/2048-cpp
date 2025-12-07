@@ -14,7 +14,7 @@ namespace tfe::input {
 
     InputHandler::~InputHandler() { setRawMode(false); }
 
-    void InputHandler::setRawMode(bool enable) {
+    void InputHandler::setRawMode(const bool enable) {
         if (enable) {
             tcgetattr(STDIN_FILENO, &orig_termios);
             struct termios raw = orig_termios;
@@ -46,10 +46,8 @@ namespace tfe::input {
                 // Xử lý phím mũi tên (ANSI escape sequence: ^[[A, ^[[B...)
             case '\033': {
                 char seq[2];
-                if (read(STDIN_FILENO, &seq[0], 1) == -1)
-                    return InputCommand::None;
-                if (read(STDIN_FILENO, &seq[1], 1) == -1)
-                    return InputCommand::None;
+                if (read(STDIN_FILENO, &seq[0], 1) == -1) return InputCommand::None;
+                if (read(STDIN_FILENO, &seq[1], 1) == -1) return InputCommand::None;
                 if (seq[0] == '[') {
                     switch (seq[1]) {
                         case 'A':
@@ -60,12 +58,15 @@ namespace tfe::input {
                             return InputCommand::MoveRight;
                         case 'D':
                             return InputCommand::MoveLeft;
+                        default:
+                            return InputCommand::None;
                     }
                 }
                 return InputCommand::None;
             }
+            default:
+                return InputCommand::None;
         }
-        return InputCommand::None;
     }
 
 }  // namespace tfe::input

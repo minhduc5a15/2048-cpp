@@ -1,6 +1,5 @@
 #pragma once
 #include <vector>
-
 #include "types.h"
 
 namespace tfe::core {
@@ -35,7 +34,7 @@ namespace tfe::core {
         Position lastSpawnPos_ = {-1, -1};
         std::vector<Position> mergedPos_;
 
-        void compress(std::vector<Tile>& row, std::vector<int>& idRow);
+        void compress(std::vector<Tile>& row, std::vector<int>& idRow) const;
         void merge(std::vector<Tile>& row, std::vector<int>& idRow);
 
         void reverse();

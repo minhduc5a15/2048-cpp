@@ -10,19 +10,12 @@ namespace tfe::input {
 
         // Trả về hướng di chuyển hoặc null nếu không phải phím điều hướng
         // Trả về phương thức input để Game Loop xử lý
-        enum class InputCommand {
-            None,
-            MoveUp,
-            MoveDown,
-            MoveLeft,
-            MoveRight,
-            Quit
-        };
+        enum class InputCommand { None, MoveUp, MoveDown, MoveLeft, MoveRight, Quit };
 
-        InputCommand readInput();
+        static InputCommand readInput();
 
     private:
-        void setRawMode(bool enable);
+        static void setRawMode(bool enable);
     };
 
 }  // namespace tfe::input

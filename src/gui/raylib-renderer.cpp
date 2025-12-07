@@ -1,8 +1,7 @@
 #include "raylib-renderer.h"
 
-#include <cmath>  // Cần cho pow
+#include <cmath>
 #include <string>
-
 #include "raylib.h"
 #include "theme.h"
 

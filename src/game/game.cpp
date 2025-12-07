@@ -1,12 +1,7 @@
 #include "game.h"
 
-#include <chrono>
-#include <thread>
-
 namespace tfe::game {
-    Game::Game() : board_(4), isRunning_(true) {
-        // Board đã tự động spawn 2 ô trong constructor
-    }
+    Game::Game() : board_(4), isRunning_(true) {}
 
     void Game::run() {
         while (isRunning_) {
@@ -23,25 +18,24 @@ namespace tfe::game {
             }
 
             // 3. Input
-            auto command = inputHandler_.readInput();
+            const auto command = inputHandler_.readInput();
 
             // 4. Update Logic
-            bool moved = false;
             switch (command) {
                 case input::InputHandler::InputCommand::Quit:
                     isRunning_ = false;
                     break;
                 case input::InputHandler::InputCommand::MoveUp:
-                    moved = board_.move(core::Direction::Up);
+                    board_.move(core::Direction::Up);
                     break;
                 case input::InputHandler::InputCommand::MoveDown:
-                    moved = board_.move(core::Direction::Down);
+                    board_.move(core::Direction::Down);
                     break;
                 case input::InputHandler::InputCommand::MoveLeft:
-                    moved = board_.move(core::Direction::Left);
+                    board_.move(core::Direction::Left);
                     break;
                 case input::InputHandler::InputCommand::MoveRight:
-                    moved = board_.move(core::Direction::Right);
+                    board_.move(core::Direction::Right);
                     break;
                 default:
                     break;

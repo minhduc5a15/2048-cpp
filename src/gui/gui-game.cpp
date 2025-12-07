@@ -16,21 +16,18 @@ namespace tfe::gui {
     GuiGame::GuiGame() : board_(4), isGameOver_(false) {}
 
     void GuiGame::run() {
-        // renderer_ đã tự gọi InitWindow trong constructor của nó
         while (!renderer_.shouldClose()) {
             update();
             draw();
         }
-        // renderer_ destructor sẽ tự gọi CloseWindow
     }
 
     void GuiGame::draw() {
         BeginDrawing();
-        renderer_.draw(board_);  // Chỉ vẽ bàn cờ
+        renderer_.draw(board_);
 
         if (isGameOver_) {
-            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(),
-                          Fade(Theme::BG_COLOR, 0.8f));
+            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(Theme::BG_COLOR, 0.8f));
             DrawText("GAME OVER", 80, 250, 60, Theme::TEXT_DARK);
             DrawText("Press ENTER to Restart", 120, 320, 20, Theme::TEXT_DARK);
         }
@@ -49,7 +46,7 @@ namespace tfe::gui {
             return;
         }
 
-        tfe::core::Direction dir;
+        tfe::core::Direction dir = {};
         bool pressed = false;
         if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
             dir = tfe::core::Direction::Up;
@@ -66,44 +63,33 @@ namespace tfe::gui {
         }
 
         if (pressed) {
-            // 1. CHỤP ẢNH TRẠNG THÁI CŨ
             std::map<int, TileSnapshot> oldStates;
-            int size = board_.getSize();
+            const int size = board_.getSize();
             for (int r = 0; r < size; ++r) {
                 for (int c = 0; c < size; ++c) {
-                    int id = board_.getTileId(r, c);
-                    if (id != 0)
-                        oldStates[id] = {id, board_.getTile(r, c), r, c};
+                    if (int id = board_.getTileId(r, c); id != 0) oldStates[id] = {id, board_.getTile(r, c), r, c};
                 }
             }
 
-            // 2. DI CHUYỂN
-            bool moved = board_.move(dir);
+            const bool moved = board_.move(dir);
 
-            // 3. XỬ LÝ ANIMATION
             if (moved) {
-                auto spawnPos =
-                    board_.getLastSpawnPos();  // Vị trí vừa spawn mới (nếu có)
+                auto spawnPos = board_.getLastSpawnPos();
 
                 for (int r = 0; r < size; ++r) {
                     for (int c = 0; c < size; ++c) {
                         int id = board_.getTileId(r, c);
                         if (id == 0) continue;
 
-                        if (oldStates.count(id)) {
+                        if (oldStates.contains(id)) {
                             // Tile cũ -> Check xem có trượt không
                             TileSnapshot old = oldStates[id];
                             if (old.r != r || old.c != c) {
-                                renderer_.addMovingTile(old.val, id, old.r,
-                                                        old.c, r, c);
+                                renderer_.addMovingTile(old.val, id, old.r, old.c, r, c);
                             }
                         } else {
-                            // Tile mới (ID mới) -> Có thể là Merge hoặc Spawn
-                            // Nếu vị trí này KHÔNG PHẢI là vị trí spawn ngẫu
-                            // nhiên -> Chắc chắn là MERGE
                             if (r != spawnPos.r || c != spawnPos.c) {
-                                renderer_.triggerMerge(
-                                    r, c);  // Kích hoạt hiệu ứng POP
+                                renderer_.triggerMerge(r, c);
                             }
                         }
                     }
@@ -112,10 +98,8 @@ namespace tfe::gui {
             if (board_.isGameOver()) isGameOver_ = true;
         }
 
-        // 4. SPAWN ANIMATION (Cho ô mới sinh ra ngẫu nhiên)
-        auto currentSpawnPos = board_.getLastSpawnPos();
-        if (currentSpawnPos.r != lastSeenSpawnPos_.r ||
-            currentSpawnPos.c != lastSeenSpawnPos_.c) {
+        if (const auto currentSpawnPos = board_.getLastSpawnPos();
+            currentSpawnPos.r != lastSeenSpawnPos_.r || currentSpawnPos.c != lastSeenSpawnPos_.c) {
             if (currentSpawnPos.r != -1) {
                 renderer_.triggerSpawn(currentSpawnPos.r, currentSpawnPos.c);
             }

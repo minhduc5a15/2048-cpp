@@ -31,16 +31,14 @@ namespace tfe::gui {
         // Hàm draw gọn gàng, không cần tham số hiddenIds từ ngoài
         void draw(const tfe::core::Board& board);
 
-        void updateAnimation(
-            float dt);  // Xử lý tất cả animation (Slide, Scale, Pop)
+        void updateAnimation(float dt);  // Xử lý tất cả animation (Slide, Scale, Pop)
 
         // Trigger các hiệu ứng
         void triggerSpawn(int r, int c);
         void triggerMerge(int r, int c);
 
         // Slide Animation
-        void addMovingTile(int value, int id, int fromR, int fromC, int toR,
-                           int toC);
+        void addMovingTile(int value, int id, int fromR, int fromC, int toR, int toC);
         bool isAnimating() const { return !movingTiles_.empty(); }
 
     private:
@@ -55,8 +53,7 @@ namespace tfe::gui {
         float getPixelY(int r) const;
 
         // Hàm Easing (Toán học)
-        float easeOutBack(
-            float x);            // Hiệu ứng đàn hồi (vượt quá 1 rồi quay lại)
-        float easePop(float x);  // Hiệu ứng Pop (Lên 1.2 rồi về 1.0)
+        static float easeOutBack(float x);  // Hiệu ứng đàn hồi (vượt quá 1 rồi quay lại)
+        static float easePop(float x);      // Hiệu ứng Pop (Lên 1.2 rồi về 1.0)
     };
 }  // namespace tfe::gui

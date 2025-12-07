@@ -6,6 +6,7 @@ NamespaceIndentation: All
 FixNamespaceComments: true
 
 AccessModifierOffset: -4
+ColumnLimit: 150
 
 BraceWrapping:
   AfterEnum: true

@@ -21,7 +21,7 @@ namespace tfe::gui {
         static constexpr int CELL_PADDING = 10;
 
         // Helper lấy màu theo giá trị Tile
-        static Color getTileColor(int value) {
+        static Color getTileColor(const int value) {
             switch (value) {
                 case 2:
                     return {238, 228, 218, 255};
@@ -51,7 +51,7 @@ namespace tfe::gui {
         }
 
         // Helper chọn màu chữ (số nhỏ màu tối, số lớn màu trắng)
-        static Color getTextColor(int value) { return (value <= 4) ? TEXT_DARK : TEXT_LIGHT; }
+        static Color getTextColor(const int value) { return (value <= 4) ? TEXT_DARK : TEXT_LIGHT; }
     };
 
 }  // namespace tfe::gui
