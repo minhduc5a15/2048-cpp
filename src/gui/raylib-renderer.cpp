@@ -24,7 +24,6 @@ bool RaylibRenderer::shouldClose() const {
 }
 
 void RaylibRenderer::draw(const tfe::core::Board& board) {
-    BeginDrawing();
     ClearBackground(Theme::BG_COLOR);
 
     int size = board.getSize();
@@ -66,8 +65,6 @@ void RaylibRenderer::draw(const tfe::core::Board& board) {
             }
         }
     }
-
-    EndDrawing();
 }
 
 } // namespace tfe::gui
