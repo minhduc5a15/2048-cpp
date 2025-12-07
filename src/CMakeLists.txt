@@ -11,4 +11,5 @@ add_executable(2048-game main.cpp)
 target_link_libraries(2048-game PRIVATE game)
 
 add_executable(2048-gui main-gui.cpp)
-target_link_libraries(2048-gui PRIVATE gui)
+target_include_directories(2048-gui PUBLIC ${CMAKE_SOURCE_DIR}/core)
+target_link_libraries(2048-gui PUBLIC gui)

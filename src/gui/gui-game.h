@@ -1,6 +1,7 @@
 #pragma once
-#include "../core/board.h"
+#include "core/board.h"
 #include "raylib-renderer.h"
+#include "core/game-observer.h"
 
 namespace tfe::gui {
 
@@ -10,35 +11,27 @@ namespace tfe::gui {
      *
      * This class orchestrates the interaction between the core game logic (`Board`)
      * and the GUI renderer (`RaylibRenderer`), handling user input, game state updates,
-     * and rendering each frame.
+     * and rendering each frame. It implements IGameObserver to react to board events.
      */
-    class GuiGame {
+    class GuiGame : public tfe::IGameObserver {
     public:
-        /**
-         * @brief Constructs a new GuiGame instance.
-         */
         GuiGame();
-
-        /**
-         * @brief Starts and runs the main game loop.
-         */
         void run();
 
-    private:
-        /**
-         * @brief Updates the game state for the current frame.
-         */
-        void update();
+        // --- IGameEventListener Implementation ---
+        void onTileSpawn(int r, int c, tfe::core::Tile value) override;
+        void onTileMerge(int r, int c, tfe::core::Tile newValue) override;
+        void onTileMove(int fromR, int fromC, int toR, int toC, tfe::core::Tile value) override;
+        void onGameOver() override;
+        void onGameReset() override;
 
-        /**
-         * @brief Draws the current game state to the screen.
-         */
+    private:
+        void update();
         void draw() const;
 
-        tfe::core::Board board_;       // The core game board logic and state.
-        RaylibRenderer renderer_;      // The renderer for drawing the GUI.
-        bool isGameOver_;              // Flag indicating if the game over condition has been met.
-        // Tracks the last seen spawn position to trigger spawn animations correctly.
-        tfe::core::Board::Position lastSeenSpawnPos_ = {-1, -1};
+        tfe::core::Board board_;
+        RaylibRenderer renderer_;
+        bool isGameOver_;
+        tfe::core::Direction currentMoveDirection_;  // To handle transformed coordinates
     };
 }  // namespace tfe::gui

@@ -4,4 +4,4 @@ add_library(gui STATIC
 )
 
 target_include_directories(gui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(gui PRIVATE raylib core score)
+target_link_libraries(gui PRIVATE raylib score PUBLIC core)
