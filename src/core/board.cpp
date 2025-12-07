@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+
 #include "config.h"
 #include "score/score-manager.h"
 #include "utils/random-generator.h"
@@ -25,13 +26,34 @@ namespace tfe::core {
         spawnRandomTile();
     }
 
-    void Board::addObserver(tfe::IGameObserver* observer) {
-        observers_.push_back(observer);
+    GameState Board::getState() const { return GameState{grid_, score_, idGrid_, nextId_}; }
+
+    void Board::loadState(const GameState& state) {
+        // Check size for safety (if the save file has a different board size than the current one)
+        if (state.grid.size() != static_cast<size_t>(size_)) {
+            // Can throw an error or reset if it doesn't match, here we temporarily reset
+            reset();
+            return;
+        }
+
+        grid_ = state.grid;
+        score_ = state.score;
+        idGrid_ = state.idGrid;
+        nextId_ = state.nextId;
+
+        // Update High Score if the loaded score is greater than the current one
+        if (score_ > highScore_) {
+            highScore_ = score_;
+        }
+
+        // Notify the GUI to redraw the entire new board
+        // We use notifyGameReset to make the GUI redraw from scratch
+        notifyGameReset();
     }
 
-    void Board::removeObserver(tfe::IGameObserver* observer) {
-        std::erase(observers_, observer);
-    }
+    void Board::addObserver(tfe::IGameObserver* observer) { observers_.push_back(observer); }
+
+    void Board::removeObserver(tfe::IGameObserver* observer) { std::erase(observers_, observer); }
 
     int Board::getSize() const { return size_; }
     const Grid& Board::getGrid() const { return grid_; }
@@ -74,7 +96,7 @@ namespace tfe::core {
                 score_ += row[i];
                 if (score_ > highScore_) highScore_ = score_;
                 if (row[i] == Config::WINNING_TILE) hasReachedWinTile_ = true;
-                
+
                 row[i + 1] = 0;
                 idRow[i] = nextId_++;
                 idRow[i + 1] = 0;
@@ -96,19 +118,19 @@ namespace tfe::core {
             changed = true;
 
             std::vector<bool> merged(size_, false);
-            for(int c = 0; c < size_; ++c) {
-                if(grid_[r][c] == 0) continue;
+            for (int c = 0; c < size_; ++c) {
+                if (grid_[r][c] == 0) continue;
                 bool found = false;
-                for(int oc = 0; oc < size_; ++oc) {
-                    if(idGrid_[r][c] == originalIdRow[oc]) { 
-                        if(c != oc) notifyTileMove(r, oc, r, c, grid_[r][c]);
+                for (int oc = 0; oc < size_; ++oc) {
+                    if (idGrid_[r][c] == originalIdRow[oc]) {
+                        if (c != oc) notifyTileMove(r, oc, r, c, grid_[r][c]);
                         found = true;
                         break;
                     }
                 }
-                if(!found && !merged[c]) {
-                     notifyTileMerge(r, c, grid_[r][c]);
-                     merged[c] = true;
+                if (!found && !merged[c]) {
+                    notifyTileMerge(r, c, grid_[r][c]);
+                    merged[c] = true;
                 }
             }
         }
@@ -133,10 +155,26 @@ namespace tfe::core {
         clearEffects();
         bool changed = false;
         switch (dir) {
-            case Direction::Left: changed = moveLeft(); break;
-            case Direction::Right: reverse(); changed = moveLeft(); reverse(); break;
-            case Direction::Up: transpose(); changed = moveLeft(); transpose(); break;
-            case Direction::Down: transpose(); reverse(); changed = moveLeft(); reverse(); transpose(); break;
+            case Direction::Left:
+                changed = moveLeft();
+                break;
+            case Direction::Right:
+                reverse();
+                changed = moveLeft();
+                reverse();
+                break;
+            case Direction::Up:
+                transpose();
+                changed = moveLeft();
+                transpose();
+                break;
+            case Direction::Down:
+                transpose();
+                reverse();
+                changed = moveLeft();
+                reverse();
+                transpose();
+                break;
         }
         if (changed) spawnRandomTile();
         return changed;
@@ -163,7 +201,7 @@ namespace tfe::core {
         }
     }
 
-    bool Board::isGameOver() {
+    bool Board::isGameOver() const {
         for (int i = 0; i < size_; ++i) {
             for (int j = 0; j < size_; ++j) {
                 if (grid_[i][j] == 0) return false;
@@ -179,19 +217,19 @@ namespace tfe::core {
     int Board::getHighScore() const { return highScore_; }
     bool Board::hasWon() const { return hasReachedWinTile_; }
 
-    void Board::notifyTileSpawn(int r, int c, Tile value) {
+    void Board::notifyTileSpawn(const int r, const int c, const Tile value) const {
         for (auto* observer : observers_) observer->onTileSpawn(r, c, value);
     }
-    void Board::notifyTileMerge(int r, int c, Tile newValue) {
+    void Board::notifyTileMerge(const int r, const int c, const Tile newValue) const {
         for (auto* observer : observers_) observer->onTileMerge(r, c, newValue);
     }
-    void Board::notifyTileMove(int fromR, int fromC, int toR, int toC, Tile value) {
+    void Board::notifyTileMove(const int fromR, const int fromC, const int toR, const int toC, const Tile value) const {
         for (auto* observer : observers_) observer->onTileMove(fromR, fromC, toR, toC, value);
     }
-    void Board::notifyGameOver() {
+    void Board::notifyGameOver() const {
         for (auto* observer : observers_) observer->onGameOver();
     }
-    void Board::notifyGameReset() {
+    void Board::notifyGameReset() const {
         for (auto* observer : observers_) observer->onGameReset();
     }
 

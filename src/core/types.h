@@ -10,4 +10,12 @@ namespace tfe::core {
 
     // Enum representing the possible directions a player can move the tiles.
     enum class Direction { Up, Down, Left, Right };
+
+    // Struct that contains the entire state of the board that needs to be saved.
+    struct GameState {
+        Grid grid;
+        int score;
+        std::vector<std::vector<int>> idGrid;
+        int nextId;
+    };
 }  // namespace tfe::core

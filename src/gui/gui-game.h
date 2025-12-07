@@ -1,7 +1,8 @@
 #pragma once
 #include "core/board.h"
-#include "raylib-renderer.h"
 #include "core/game-observer.h"
+#include "core/game-saver.h"
+#include "raylib-renderer.h"
 
 namespace tfe::gui {
 
@@ -13,12 +14,12 @@ namespace tfe::gui {
      * and the GUI renderer (`RaylibRenderer`), handling user input, game state updates,
      * and rendering each frame. It implements IGameObserver to react to board events.
      */
-    class GuiGame : public tfe::IGameObserver {
+    class GuiGame final : public tfe::IGameObserver {
     public:
         GuiGame();
         void run();
 
-        // --- IGameEventListener Implementation ---
+        // --- IGameObserver Implementation ---
         void onTileSpawn(int r, int c, tfe::core::Tile value) override;
         void onTileMerge(int r, int c, tfe::core::Tile newValue) override;
         void onTileMove(int fromR, int fromC, int toR, int toC, tfe::core::Tile value) override;
@@ -29,9 +30,14 @@ namespace tfe::gui {
         void update();
         void draw() const;
 
+        static void drawExitDialog() ;
+
         tfe::core::Board board_;
         RaylibRenderer renderer_;
         bool isGameOver_;
         tfe::core::Direction currentMoveDirection_;  // To handle transformed coordinates
+
+        bool showExitPrompt_ = false;
+        bool shouldExitApp_ = false;
     };
 }  // namespace tfe::gui

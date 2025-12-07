@@ -24,7 +24,7 @@ namespace tfe::core {
 
         bool move(Direction dir);
         void spawnRandomTile();
-        bool isGameOver(); // Cannot be const as it may fire a notification
+        bool isGameOver() const; // Cannot be const as it may fire a notification
 
         struct Position {
             int r, c;
@@ -38,6 +38,9 @@ namespace tfe::core {
         int getScore() const;
         int getHighScore() const;
         bool hasWon() const;
+
+        GameState getState() const;
+        void loadState(const GameState& state);
 
     private:
         int size_;
@@ -61,11 +64,11 @@ namespace tfe::core {
         bool moveLeft();
 
         // --- Notifier methods ---
-        void notifyTileSpawn(int r, int c, Tile value);
-        void notifyTileMerge(int r, int c, Tile newValue);
-        void notifyTileMove(int fromR, int fromC, int toR, int toC, Tile value);
-        void notifyGameOver();
-        void notifyGameReset();
+        void notifyTileSpawn(int r, int c, Tile value) const;
+        void notifyTileMerge(int r, int c, Tile newValue) const;
+        void notifyTileMove(int fromR, int fromC, int toR, int toC, Tile value) const;
+        void notifyGameOver() const;
+        void notifyGameReset() const;
 
         void clearEffects() {
             mergedPos_.clear();

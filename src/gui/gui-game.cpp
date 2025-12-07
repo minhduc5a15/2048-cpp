@@ -8,10 +8,13 @@ namespace tfe::gui {
 
     GuiGame::GuiGame() : board_(4), renderer_(), isGameOver_(false), currentMoveDirection_(tfe::core::Direction::Up) {
         board_.addObserver(this);
+        if (const auto state = tfe::core::GameSaver::load(); state.has_value()) {
+            board_.loadState(*state);
+        }
     }
 
     void GuiGame::run() {
-        while (!tfe::gui::RaylibRenderer::shouldClose()) {
+        while (!shouldExitApp_) {
             update();
             draw();
         }
@@ -26,10 +29,54 @@ namespace tfe::gui {
             DrawText("GAME OVER", 80, 250, 60, Theme::TEXT_DARK);
             DrawText("Press ENTER to Restart", 120, 320, 20, Theme::TEXT_DARK);
         }
+
+        if (showExitPrompt_ && !isGameOver_) {
+            drawExitDialog();
+        }
         EndDrawing();
     }
 
+    void GuiGame::drawExitDialog() {
+        // Làm tối màn hình
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.5f));
+
+        // Vẽ hộp thoại
+        constexpr int boxW = 400;
+        constexpr int boxH = 200;
+        const int boxX = (GetScreenWidth() - boxW) / 2;
+        const int boxY = (GetScreenHeight() - boxH) / 2;
+
+        DrawRectangle(boxX, boxY, boxW, boxH, Fade(Theme::BG_COLOR, 0.95f));
+        DrawRectangleLines(boxX, boxY, boxW, boxH, Theme::TEXT_DARK);
+
+        const auto text1 = "Do you want to save?";
+        const auto text2 = "[Y] Yes   [N] No";
+        const auto text3 = "[ESC] Cancel";
+
+        DrawText(text1, boxX + (boxW - MeasureText(text1, 30)) / 2, boxY + 40, 30, Theme::TEXT_DARK);
+        DrawText(text2, boxX + (boxW - MeasureText(text2, 25)) / 2, boxY + 100, 25, Theme::TEXT_DARK);
+        DrawText(text3, boxX + (boxW - MeasureText(text3, 20)) / 2, boxY + 150, 20, Theme::TEXT_LIGHT);
+    }
+
     void GuiGame::update() {
+        if (showExitPrompt_) {
+            if (IsKeyPressed(KEY_Y)) {
+                tfe::core::GameSaver::save(board_.getState());
+                shouldExitApp_ = true;
+            } else if (IsKeyPressed(KEY_N)) {
+                tfe::core::GameSaver::clearSave();
+                shouldExitApp_ = true;
+            } else if (IsKeyPressed(KEY_ESCAPE)) {
+                showExitPrompt_ = false;
+            }
+            return;
+        }
+
+        if (tfe::gui::RaylibRenderer::shouldClose()) {
+            showExitPrompt_ = true;
+            return;
+        }
+
         renderer_.updateAnimation(GetFrameTime());
         if (renderer_.isAnimating()) {
             return;
@@ -59,19 +106,19 @@ namespace tfe::gui {
 
         if (pressed) {
             board_.move(currentMoveDirection_);
-            board_.isGameOver();
+            if (board_.isGameOver()) return;
         }
     }
 
     // --- IGameEventListener Implementation ---
 
-    void GuiGame::onTileSpawn(int r, int c, tfe::core::Tile value) {
-        (void)value; // This parameter might be used later for different spawn animations
+    void GuiGame::onTileSpawn(const int r, const int c, const tfe::core::Tile value) {
+        (void)value;  // This parameter might be used later for different spawn animations
         renderer_.triggerSpawn(r, c);
     }
 
-    void GuiGame::onTileMerge(int r, int c, tfe::core::Tile newValue) {
-        (void)newValue; // This parameter might be used later for different merge animations
+    void GuiGame::onTileMerge(const int r, const int c, const tfe::core::Tile newValue) {
+        (void)newValue;  // This parameter might be used later for different merge animations
         // The event coordinates from the Board are relative to a "move left" operation.
         // We must transform them back based on the actual move direction.
         if (currentMoveDirection_ == tfe::core::Direction::Up) {
@@ -79,22 +126,22 @@ namespace tfe::gui {
         } else if (currentMoveDirection_ == tfe::core::Direction::Down) {
             renderer_.triggerMerge(3 - c, r);
         } else if (currentMoveDirection_ == tfe::core::Direction::Right) {
-             renderer_.triggerMerge(r, 3 - c);
-        } else { // Left
+            renderer_.triggerMerge(r, 3 - c);
+        } else {  // Left
             renderer_.triggerMerge(r, c);
         }
     }
 
-    void GuiGame::onTileMove(int fromR, int fromC, int toR, int toC, tfe::core::Tile value) {
+    void GuiGame::onTileMove(const int fromR, const int fromC, const int toR, const int toC, const tfe::core::Tile value) {
         // The event coordinates from the Board are relative to a "move left" operation.
         // We must transform them back based on the actual move direction.
         if (currentMoveDirection_ == tfe::core::Direction::Up) {
             renderer_.addMovingTile(value, 0, fromC, fromR, toC, toR);
         } else if (currentMoveDirection_ == tfe::core::Direction::Down) {
-             renderer_.addMovingTile(value, 0, 3 - fromC, fromR, 3 - toC, toR);
+            renderer_.addMovingTile(value, 0, 3 - fromC, fromR, 3 - toC, toR);
         } else if (currentMoveDirection_ == tfe::core::Direction::Right) {
             renderer_.addMovingTile(value, 0, fromR, 3 - fromC, toR, 3 - toC);
-        } else { // Left
+        } else {  // Left
             renderer_.addMovingTile(value, 0, fromR, fromC, toR, toC);
         }
     }
@@ -102,10 +149,9 @@ namespace tfe::gui {
     void GuiGame::onGameOver() {
         isGameOver_ = true;
         tfe::score::ScoreManager::save_game(board_.getScore(), board_.hasWon());
+        tfe::core::GameSaver::clearSave();
     }
 
-    void GuiGame::onGameReset() {
-        isGameOver_ = false;
-    }
+    void GuiGame::onGameReset() { isGameOver_ = false; }
 
 }  // namespace tfe::gui
