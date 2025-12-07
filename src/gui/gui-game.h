@@ -17,6 +17,7 @@ namespace tfe::gui {
         tfe::core::Board board_;
         RaylibRenderer renderer_;
         bool isGameOver_;
+        tfe::core::Board::Position lastSeenSpawnPos_ = {-1, -1};
     };
 
 } // namespace tfe::gui

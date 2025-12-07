@@ -2,9 +2,10 @@
 #include "types.h"
 #include <vector>
 
-namespace tfe::core {
-
-    class Board {
+namespace tfe::core
+{
+    class Board
+    {
     public:
         explicit Board(int size = 4);
         void reset();
@@ -23,6 +24,18 @@ namespace tfe::core {
         // Kiểm tra game over (không còn nước đi)
         bool isGameOver() const;
 
+        struct Position
+        {
+            int r, c;
+        };
+
+        Position getLastSpawnPos() const { return lastSpawnPos_; }
+
+        // Lấy danh sách các ô vừa được merge (để GUI làm hiệu ứng pop)
+        const std::vector<Position>& getMergedPositions() const { return mergedPos_; }
+
+        int getTileId(int r, int c) const;
+
     private:
         int size_;
         Grid grid_;
@@ -32,8 +45,16 @@ namespace tfe::core {
         void merge(std::vector<Tile>& row);
         bool moveLeft(); // Xử lý logic gốc cho hướng Trái
 
-        void reverse();   // Đảo ngược các hàng
+        void reverse(); // Đảo ngược các hàng
         void transpose(); // Chuyển vị (hàng thành cột)
-    };
 
+        Position lastSpawnPos_ = {-1, -1};
+        std::vector<Position> mergedPos_;
+
+        void clearEffects()
+        {
+            mergedPos_.clear();
+            lastSpawnPos_ = {-1, -1};
+        }
+    };
 } // namespace tfe::core

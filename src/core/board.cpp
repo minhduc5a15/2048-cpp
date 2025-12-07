@@ -92,6 +92,8 @@ void Board::transpose() {
 // --- MAIN LOGIC ---
 
 bool Board::move(Direction dir) {
+    clearEffects();
+
     bool changed = false;
 
     switch (dir) {
@@ -135,9 +137,13 @@ void Board::spawnRandomTile() {
 
     if (!emptyCells.empty()) {
         int index = utils::RandomGenerator::getInt(0, emptyCells.size() - 1);
-        // Tỉ lệ 90% ra số 2, 10% ra số 4 (luật chuẩn 2048)
         Tile val = utils::RandomGenerator::getBool(0.9) ? 2 : 4;
-        grid_[emptyCells[index].first][emptyCells[index].second] = val;
+
+        int r = emptyCells[index].first;
+        int c = emptyCells[index].second;
+        grid_[r][c] = val;
+
+        lastSpawnPos_ = {r, c};
     }
 }
 
