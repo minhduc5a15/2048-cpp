@@ -12,6 +12,8 @@ namespace tfe::utils {  // tfe = twenty-four-eight
         // Returns true with a given probability (from 0.0 to 1.0).
         static bool getBool(double probability);
 
+        static void setSeed(unsigned int seed);
+
     private:
         // Provides access to the singleton random number engine.
         static std::mt19937& getEngine();

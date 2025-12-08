@@ -18,4 +18,8 @@ namespace tfe::utils {
         return dist(getEngine());
     }
 
+    void RandomGenerator::setSeed(const unsigned int seed) {
+        getEngine().seed(seed);
+    }
+
 }  // namespace tfe::utils

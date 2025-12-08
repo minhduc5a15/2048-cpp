@@ -3,6 +3,7 @@ project(Project2048 VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(MSVC)
     add_compile_options(/W4)
@@ -26,9 +27,17 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/nlohmann/json.git
         GIT_TAG "v3.11.3"
 )
+
+FetchContent_Declare(
+        pybind11
+        URL https://github.com/pybind/pybind11/archive/refs/tags/v2.12.0.tar.gz
+)
+FetchContent_MakeAvailable(pybind11)
+
 FetchContent_MakeAvailable(nlohmann_json)
 
 enable_testing()
 
 add_subdirectory(src)
 add_subdirectory(tests)
+add_subdirectory(pybind)

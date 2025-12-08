@@ -15,3 +15,7 @@ Thumbs.db
 
 
 build.sh
+
+# Python virtual environment
+.venv/
+__pycache__/
