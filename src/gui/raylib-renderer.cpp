@@ -33,8 +33,8 @@ namespace tfe::gui {
      * @return The eased scale factor.
      */
     float RaylibRenderer::easePop(const float x) {
-        if (x < 0.5f) return 1.0f + (x * 2.0f) * 0.2f; // Scale up to 1.2
-        return 1.2f - ((x - 0.5f) * 2.0f) * 0.2f; // Scale back down to 1.0
+        if (x < 0.5f) return 1.0f + (x * 2.0f) * 0.2f;  // Scale up to 1.2
+        return 1.2f - ((x - 0.5f) * 2.0f) * 0.2f;       // Scale back down to 1.0
     }
 
     /**
@@ -96,9 +96,21 @@ namespace tfe::gui {
      * @brief Triggers a merge animation (pop effect) for a tile at a specific grid position.
      * @param r The row of the tile to animate.
      * @param c The column of the tile to animate.
+     * @param value The value of the merged tile (e.g., 8, 16).
      */
-    void RaylibRenderer::triggerMerge(const int r, const int c) {
-        if (r >= 0 && r < 4 && c >= 0 && c < 4) cellAnims_[r][c] = {CellAnim::Merge, 0.0f};
+    void RaylibRenderer::triggerMerge(const int r, const int c, const int value) {
+        if (r >= 0 && r < 4 && c >= 0 && c < 4) {
+            cellAnims_[r][c] = {CellAnim::Merge, 0.0f};
+
+            FloatingText ft{};
+            ft.value = value;
+
+            ft.x = getPixelX(c) + cellSize_ / 2.0f;
+            ft.y = getPixelY(r) + cellSize_ / 2.0f;
+            ft.lifeTime = 0.0f;
+            ft.maxLifeTime = 0.6f;
+            floatingTexts_.push_back(ft);
+        }
     }
 
     /**
@@ -129,7 +141,7 @@ namespace tfe::gui {
      * @brief Updates the progress of all active animations.
      * @param dt The delta time (time since the last frame).
      */
-    void RaylibRenderer::updateAnimation(float dt) {
+    void RaylibRenderer::updateAnimation(const float dt) {
         // Update slide animations for moving tiles.
         constexpr float slideSpeed = Theme::ANIMATION_SPEED_SLIDE;
         for (auto it = movingTiles_.begin(); it != movingTiles_.end();) {
@@ -157,6 +169,18 @@ namespace tfe::gui {
                 }
             }
         }
+        // Update floating text animations
+        for (auto it = floatingTexts_.begin(); it != floatingTexts_.end();) {
+            it->lifeTime += dt;
+            // Bay lên trên: trừ Y (khoảng 50 pixel mỗi giây)
+            it->y -= 50.0f * dt;
+
+            if (it->lifeTime >= it->maxLifeTime) {
+                it = floatingTexts_.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 
     /**
@@ -181,15 +205,14 @@ namespace tfe::gui {
         };
 
         // Position and draw the score boxes
-        const float boxWidth = 120;
-        const float boxHeight = 60;
-        const float boxPadding = 10;
-        const float bestScoreX = Theme::SCREEN_WIDTH - Theme::BOARD_PADDING - boxWidth;
-        const float scoreX = bestScoreX - boxWidth - boxPadding;
+        constexpr float boxWidth = 120;
+        constexpr float boxHeight = 60;
+        constexpr float boxPadding = 10;
+        constexpr float bestScoreX = Theme::SCREEN_WIDTH - Theme::BOARD_PADDING - boxWidth;
+        constexpr float scoreX = bestScoreX - boxWidth - boxPadding;
 
         drawScoreBox(scoreX, 20, boxWidth, boxHeight, "SCORE", board.getScore());
         drawScoreBox(bestScoreX, 20, boxWidth, boxHeight, "BEST", board.getHighScore());
-
 
         // --- Draw Game Grid ---
         const int size = board.getSize();
@@ -257,6 +280,20 @@ namespace tfe::gui {
             const int fontSize = (mt.value < 100) ? 50 : 40;
             const int textW = MeasureText(text.c_str(), fontSize);
             DrawText(text.c_str(), currX + (cellSize_ - textW) / 2, currY + (cellSize_ - fontSize) / 2, fontSize, Theme::getTextColor(mt.value));
+        }
+
+        for (const auto& [value, x, y, lifeTime, maxLifeTime] : floatingTexts_) {
+            const float alpha = 1.0f - (lifeTime / maxLifeTime);
+
+            Color color = Theme::TEXT_DARK;
+            color.a = static_cast<unsigned char>(alpha * 255);
+
+            std::string text = "+" + std::to_string(value);
+            constexpr int fontSize = 40;
+
+            const int textW = MeasureText(text.c_str(), fontSize);
+
+            DrawText(text.c_str(), static_cast<int>(x - textW / 2), static_cast<int>(y), fontSize, color);
         }
     }
 

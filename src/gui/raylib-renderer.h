@@ -11,10 +11,21 @@ namespace tfe::gui {
     struct MovingTile {
         int value;
         int id;
-        float startX, startY;   // Starting position in pixels.
-        float targetX, targetY; // Target position in pixels.
-        int destR, destC;       // Target grid coordinates, used for ghost checking.
-        float progress;         // Animation progress from 0.0 to 1.0.
+        float startX, startY;    // Starting position in pixels.
+        float targetX, targetY;  // Target position in pixels.
+        int destR, destC;        // Target grid coordinates, used for ghost checking.
+        float progress;          // Animation progress from 0.0 to 1.0.
+    };
+
+    /**
+     * @struct FloatingText
+     * @brief Represents a piece of text (e.g., score change) that floats up and fades out.
+     */
+    struct FloatingText {
+        int value;          // The score value (e.g., 8, 16).
+        float x, y;         // Current position in pixels.
+        float lifeTime;     // Time elapsed since creation.
+        float maxLifeTime;  // Maximum duration this text should be visible (in seconds).
     };
 
     /**
@@ -25,7 +36,7 @@ namespace tfe::gui {
         enum Type { None, Spawn, Merge };
 
         Type type = None;
-        float timer = 0.0f; // Animation timer, typically from 0.0 to 1.0.
+        float timer = 0.0f;  // Animation timer, typically from 0.0 to 1.0.
     };
 
     /**
@@ -69,8 +80,9 @@ namespace tfe::gui {
          * @brief Triggers a merge animation at a specific cell.
          * @param r The row index of the cell.
          * @param c The column index of the cell.
+         * @param value The value of the merged tile (e.g., 8, 16).
          */
-        void triggerMerge(int r, int c);
+        void triggerMerge(int r, int c, int value);
 
         /**
          * @brief Adds a tile to the list of moving tiles to animate its slide.
@@ -90,13 +102,15 @@ namespace tfe::gui {
         bool isAnimating() const { return !movingTiles_.empty(); }
 
     private:
-        float cellSize_; // The size of a single cell in pixels.
+        float cellSize_;  // The size of a single cell in pixels.
 
         // A grid that tracks the animation state of each cell (for spawning/merging).
         std::vector<std::vector<CellAnim>> cellAnims_;
 
         // A list of all tiles that are currently sliding.
         std::vector<MovingTile> movingTiles_;
+
+        std::vector<FloatingText> floatingTexts_;
 
         // Helper to convert a column index to a pixel X coordinate.
         float getPixelX(int c) const;

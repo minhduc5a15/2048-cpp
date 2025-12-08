@@ -37,10 +37,9 @@ namespace tfe::gui {
     }
 
     void GuiGame::drawExitDialog() {
-        // Làm tối màn hình
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.5f));
 
-        // Vẽ hộp thoại
+        // Draw dialog
         constexpr int boxW = 400;
         constexpr int boxH = 200;
         const int boxX = (GetScreenWidth() - boxW) / 2;
@@ -118,23 +117,20 @@ namespace tfe::gui {
     }
 
     void GuiGame::onTileMerge(const int r, const int c, const tfe::core::Tile newValue) {
-        (void)newValue;  // This parameter might be used later for different merge animations
         // The event coordinates from the Board are relative to a "move left" operation.
-        // We must transform them back based on the actual move direction.
         if (currentMoveDirection_ == tfe::core::Direction::Up) {
-            renderer_.triggerMerge(c, r);
+            renderer_.triggerMerge(c, r, newValue);
         } else if (currentMoveDirection_ == tfe::core::Direction::Down) {
-            renderer_.triggerMerge(3 - c, r);
+            renderer_.triggerMerge(3 - c, r, newValue);
         } else if (currentMoveDirection_ == tfe::core::Direction::Right) {
-            renderer_.triggerMerge(r, 3 - c);
+            renderer_.triggerMerge(r, 3 - c, newValue);
         } else {  // Left
-            renderer_.triggerMerge(r, c);
+            renderer_.triggerMerge(r, c, newValue);
         }
     }
 
     void GuiGame::onTileMove(const int fromR, const int fromC, const int toR, const int toC, const tfe::core::Tile value) {
         // The event coordinates from the Board are relative to a "move left" operation.
-        // We must transform them back based on the actual move direction.
         if (currentMoveDirection_ == tfe::core::Direction::Up) {
             renderer_.addMovingTile(value, 0, fromC, fromR, toC, toR);
         } else if (currentMoveDirection_ == tfe::core::Direction::Down) {
