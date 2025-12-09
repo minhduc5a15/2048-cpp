@@ -1,21 +1,26 @@
 #pragma once
+#include <cstdint>
 #include <vector>
 
 namespace tfe::core {
-    // Represents a single tile on the game board, holding its integer value (e.g., 2, 4, 8).
-    using Tile = int;
+    // Tile lưu số mũ (0..15). Ví dụ: 1 -> 2, 2 -> 4. 0 là ô trống.
+    using Tile = uint8_t;
 
-    // Represents the entire game board as a 2D grid of tiles.
-    using Grid = std::vector<std::vector<Tile>>;
+    // Bitboard 64-bit chứa toàn bộ bàn cờ 4x4.
+    // Cấu trúc bộ nhớ: [Hàng 3][Hàng 2][Hàng 1][Hàng 0] (Mỗi hàng 16 bit)
+    using Bitboard = uint64_t;
 
-    // Enum representing the possible directions a player can move the tiles.
+    // Một hàng 4 ô (4x4 bit = 16 bit)
+    using Row = uint16_t;
+
+    // Grid cũ vẫn giữ để dùng cho GUI (render giá trị thực ra màn hình)
+    using Grid = std::vector<std::vector<int>>;
+
     enum class Direction { Up, Down, Left, Right };
 
-    // Struct that contains the entire state of the board that needs to be saved.
     struct GameState {
-        Grid grid;
+        Bitboard board;
         int score;
-        std::vector<std::vector<int>> idGrid;
-        int nextId;
+        // Các biến khác như idGrid tạm thời bỏ qua ở Core AI để tối ưu tốc độ
     };
 }  // namespace tfe::core

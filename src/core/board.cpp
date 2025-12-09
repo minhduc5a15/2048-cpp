@@ -1,24 +1,36 @@
 #include "board.h"
 
-#include <algorithm>
-#include <stdexcept>
-
 #include "config.h"
+#include "lookup_table.h"
 #include "score/score-manager.h"
 #include "utils/random-generator.h"
 
 namespace tfe::core {
 
-    Board::Board(const int size) : size_(size), score_(0), hasReachedWinTile_(false) {
+    // Hàm xoay bitboard 4x4 (Transpose)
+    static inline Bitboard transpose64(Bitboard x) {
+        Bitboard a1 = x & 0xF0F00F0FF0F00F0FULL;
+        Bitboard a2 = x & 0x0000F0F00000F0F0ULL;
+        Bitboard a3 = x & 0x0F0F00000F0F0000ULL;
+        Bitboard a = a1 | (a2 << 12) | (a3 >> 12);
+        Bitboard b1 = a & 0xFF00FF0000FF00FFULL;
+        Bitboard b2 = a & 0x00FF00FF00000000ULL;
+        Bitboard b3 = a & 0x00000000FF00FF00ULL;
+        return b1 | (b2 >> 24) | (b3 << 24);
+    }
+
+    Board::Board(int size) {
+        static bool tableInitialized = false;
+        if (!tableInitialized) {
+            LookupTable::init();
+            tableInitialized = true;
+        }
         highScore_ = tfe::score::ScoreManager::load_high_score();
-        if (size < 2) throw std::invalid_argument("Board size must be at least 2x2");
         reset();
     }
 
     void Board::reset() {
-        grid_.assign(size_, std::vector<Tile>(size_, 0));
-        idGrid_.assign(size_, std::vector<int>(size_, 0));
-        nextId_ = 1;
+        board_ = 0;
         score_ = 0;
         hasReachedWinTile_ = false;
         notifyGameReset();
@@ -26,211 +38,122 @@ namespace tfe::core {
         spawnRandomTile();
     }
 
-    GameState Board::getState() const { return GameState{grid_, score_, idGrid_, nextId_}; }
-
-    void Board::loadState(const GameState& state) {
-        // Check size for safety (if the save file has a different board size than the current one)
-        if (state.grid.size() != static_cast<size_t>(size_)) {
-            // Can throw an error or reset if it doesn't match, here we temporarily reset
-            reset();
-            return;
-        }
-
-        grid_ = state.grid;
-        score_ = state.score;
-        idGrid_ = state.idGrid;
-        nextId_ = state.nextId;
-
-        // Update High Score if the loaded score is greater than the current one
-        if (score_ > highScore_) {
-            highScore_ = score_;
-        }
-
-        // Notify the GUI to redraw the entire new board
-        // We use notifyGameReset to make the GUI redraw from scratch
-        notifyGameReset();
-    }
-
-    void Board::addObserver(tfe::IGameObserver* observer) { observers_.push_back(observer); }
-
-    void Board::removeObserver(tfe::IGameObserver* observer) { std::erase(observers_, observer); }
-
-    int Board::getSize() const { return size_; }
-    const Grid& Board::getGrid() const { return grid_; }
-    int Board::getTileId(const int row, const int col) const {
-        if (row >= 0 && row < size_ && col >= 0 && col < size_) return idGrid_[row][col];
-        return 0;
-    }
-
-    void Board::setTile(const int row, const int col, const Tile value) {
-        if (row >= 0 && row < size_ && col >= 0 && col < size_) {
-            grid_[row][col] = value;
-            idGrid_[row][col] = (value != 0) ? nextId_++ : 0;
-        }
-    }
-
-    Tile Board::getTile(const int row, const int col) const {
-        if (row >= 0 && row < size_ && col >= 0 && col < size_) return grid_[row][col];
-        return -1;
-    }
-
-    void Board::compress(std::vector<Tile>& row, std::vector<int>& idRow) const {
-        std::vector<Tile> newRow(size_, 0);
-        std::vector<int> newIdRow(size_, 0);
-        int index = 0;
-        for (int i = 0; i < size_; ++i) {
-            if (row[i] != 0) {
-                newRow[index] = row[i];
-                newIdRow[index] = idRow[i];
-                index++;
+    Grid Board::getGrid() const {
+        Grid result(4, std::vector<int>(4));
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 4; ++c) {
+                Tile t = getTile(r, c);
+                result[r][c] = (t == 0) ? 0 : (1 << t);  // Chuyển mũ thành số thực
             }
         }
-        row = newRow;
-        idRow = newIdRow;
+        return result;
     }
 
-    void Board::merge(std::vector<Tile>& row, std::vector<int>& idRow) {
-        for (int i = 0; i < size_ - 1; ++i) {
-            if (row[i] != 0 && row[i] == row[i + 1]) {
-                row[i] *= 2;
-                score_ += row[i];
-                if (score_ > highScore_) highScore_ = score_;
-                if (row[i] == Config::WINNING_TILE) hasReachedWinTile_ = true;
+    Tile Board::getTile(int row, int col) const { return (board_ >> ((row * 16) + (col * 4))) & 0xF; }
 
-                row[i + 1] = 0;
-                idRow[i] = nextId_++;
-                idRow[i + 1] = 0;
-            }
+    void Board::setTile(int row, int col, Tile value) {
+        int shift = (row * 16) + (col * 4);
+        board_ &= ~(static_cast<Bitboard>(0xF) << shift);
+        board_ |= (static_cast<Bitboard>(value) << shift);
+    }
+
+    void Board::transpose() { board_ = transpose64(board_); }
+
+    bool Board::move(Direction dir) {
+        // Chuẩn hóa về Left/Right. Nếu Up/Down thì xoay bàn cờ
+        if (dir == Direction::Up || dir == Direction::Down) transpose();
+
+        Bitboard newBoard = 0;
+        int moveScore = 0;
+
+        for (int r = 0; r < 4; ++r) {
+            Row row = (board_ >> (r * 16)) & Config::ROW_MASK;
+            Row newRow;
+
+            // Tra bảng
+            if (dir == Direction::Left || dir == Direction::Up)
+                newRow = LookupTable::moveLeftTable[row];
+            else
+                newRow = LookupTable::moveRightTable[row];
+
+            moveScore += LookupTable::scoreTable[row];
+            newBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
         }
-    }
 
-    bool Board::moveLeft() {
-        bool changed = false;
-        for (int r = 0; r < size_; ++r) {
-            std::vector<Tile> originalRow = grid_[r];
-            std::vector<int> originalIdRow = idGrid_[r];
-
-            compress(grid_[r], idGrid_[r]);
-            merge(grid_[r], idGrid_[r]);
-            compress(grid_[r], idGrid_[r]);
-
-            if (grid_[r] == originalRow) continue;
-            changed = true;
-
-            std::vector<bool> merged(size_, false);
-            for (int c = 0; c < size_; ++c) {
-                if (grid_[r][c] == 0) continue;
-                bool found = false;
-                for (int oc = 0; oc < size_; ++oc) {
-                    if (idGrid_[r][c] == originalIdRow[oc]) {
-                        if (c != oc) notifyTileMove(r, oc, r, c, grid_[r][c]);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found && !merged[c]) {
-                    notifyTileMerge(r, c, grid_[r][c]);
-                    merged[c] = true;
-                }
-            }
+        bool changed = (newBoard != board_);
+        if (changed) {
+            board_ = newBoard;
+            score_ += moveScore;
+            if (score_ > highScore_) highScore_ = score_;
         }
-        return changed;
-    }
 
-    void Board::reverse() {
-        for (auto& row : grid_) std::ranges::reverse(row);
-        for (auto& row : idGrid_) std::ranges::reverse(row);
-    }
+        // Xoay ngược lại nếu cần
+        if (dir == Direction::Up || dir == Direction::Down) transpose();
 
-    void Board::transpose() {
-        for (int i = 0; i < size_; ++i) {
-            for (int j = i + 1; j < size_; ++j) {
-                std::swap(grid_[i][j], grid_[j][i]);
-                std::swap(idGrid_[i][j], idGrid_[j][i]);
-            }
+        if (changed) {
+            spawnRandomTile();
         }
-    }
-
-    bool Board::move(const Direction dir) {
-        clearEffects();
-        bool changed = false;
-        switch (dir) {
-            case Direction::Left:
-                changed = moveLeft();
-                break;
-            case Direction::Right:
-                reverse();
-                changed = moveLeft();
-                reverse();
-                break;
-            case Direction::Up:
-                transpose();
-                changed = moveLeft();
-                transpose();
-                break;
-            case Direction::Down:
-                transpose();
-                reverse();
-                changed = moveLeft();
-                reverse();
-                transpose();
-                break;
-        }
-        if (changed) spawnRandomTile();
         return changed;
     }
 
     void Board::spawnRandomTile() {
-        std::vector<std::pair<int, int>> emptyCells;
-        for (int i = 0; i < size_; ++i) {
-            for (int j = 0; j < size_; ++j) {
-                if (grid_[i][j] == 0) emptyCells.emplace_back(i, j);
-            }
+        std::vector<int> empty;
+        for (int i = 0; i < 16; ++i) {
+            if (((board_ >> (i * 4)) & 0xF) == 0) empty.push_back(i);
         }
+        if (!empty.empty()) {
+            int idx = empty[tfe::utils::RandomGenerator::getInt(0, empty.size() - 1)];
+            Tile val = tfe::utils::RandomGenerator::getBool(Config::SPAWN_PROBABILITY_2) ? Config::TILE_EXPONENT_LOW : Config::TILE_EXPONENT_HIGH;
 
-        if (!emptyCells.empty()) {
-            const int index = utils::RandomGenerator::getInt(0, static_cast<int>(emptyCells.size()) - 1);
-            const Tile val = utils::RandomGenerator::getBool(Config::SPAWN_PROBABILITY_2) ? Config::TILE_VALUE_LOW : Config::TILE_VALUE_HIGH;
-            const int r = emptyCells[index].first;
-            const int c = emptyCells[index].second;
+            board_ |= (static_cast<Bitboard>(val) << (idx * 4));
 
-            grid_[r][c] = val;
-            idGrid_[r][c] = nextId_++;
-            lastSpawnPos_ = {r, c};
-            notifyTileSpawn(r, c, val);
+            int r = idx / 4;
+            int c = idx % 4;
+            notifyTileSpawn(r, c, (1 << val));
         }
     }
 
     bool Board::isGameOver() const {
-        for (int i = 0; i < size_; ++i) {
-            for (int j = 0; j < size_; ++j) {
-                if (grid_[i][j] == 0) return false;
-                if (j < size_ - 1 && grid_[i][j] == grid_[i][j + 1]) return false;
-                if (i < size_ - 1 && grid_[i][j] == grid_[i + 1][j]) return false;
-            }
+        // Kiểm tra hàng ngang
+        for (int r = 0; r < 4; ++r) {
+            Row row = (board_ >> (r * 16)) & 0xFFFF;
+            if (LookupTable::moveLeftTable[row] != row) return false;
+            if (LookupTable::moveRightTable[row] != row) return false;
+        }
+        // Kiểm tra hàng dọc (xoay rồi kiểm tra như hàng ngang)
+        Bitboard t = transpose64(board_);
+        for (int r = 0; r < 4; ++r) {
+            Row row = (t >> (r * 16)) & 0xFFFF;
+            if (LookupTable::moveLeftTable[row] != row) return false;
+            if (LookupTable::moveRightTable[row] != row) return false;
         }
         notifyGameOver();
         return true;
     }
 
-    int Board::getScore() const { return score_; }
-    int Board::getHighScore() const { return highScore_; }
-    bool Board::hasWon() const { return hasReachedWinTile_; }
+    GameState Board::getState() const { return GameState{board_, score_}; }
 
-    void Board::notifyTileSpawn(const int r, const int c, const Tile value) const {
-        for (auto* observer : observers_) observer->onTileSpawn(r, c, value);
+    void Board::loadState(const GameState& state) {
+        board_ = state.board;
+        score_ = state.score;
+        notifyGameReset();
     }
-    void Board::notifyTileMerge(const int r, const int c, const Tile newValue) const {
-        for (auto* observer : observers_) observer->onTileMerge(r, c, newValue);
-    }
-    void Board::notifyTileMove(const int fromR, const int fromC, const int toR, const int toC, const Tile value) const {
-        for (auto* observer : observers_) observer->onTileMove(fromR, fromC, toR, toC, value);
+
+    void Board::addObserver(IGameObserver* o) { observers_.push_back(o); }
+    void Board::removeObserver(IGameObserver* o) { std::erase(observers_, o); }
+    void Board::notifyGameReset() const {
+        for (auto* o : observers_) o->onGameReset();
     }
     void Board::notifyGameOver() const {
-        for (auto* observer : observers_) observer->onGameOver();
+        for (auto* o : observers_) o->onGameOver();
     }
-    void Board::notifyGameReset() const {
-        for (auto* observer : observers_) observer->onGameReset();
+    void Board::notifyTileSpawn(int r, int c, int v) const {
+        for (auto* o : observers_) o->onTileSpawn(r, c, v);
     }
-
+    void Board::notifyTileMove(int fr, int fc, int tr, int tc, Tile v) const {
+        for (auto* o : observers_) o->onTileMove(fr, fc, tr, tc, v);
+    }
+    void Board::notifyTileMerge(int r, int c, Tile v) const {
+        for (auto* o : observers_) o->onTileMerge(r, c, v);
+    }
 }  // namespace tfe::core

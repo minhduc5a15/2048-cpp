@@ -1,78 +1,57 @@
 #pragma once
-
 #include <vector>
-#include "types.h"
+
 #include "game-observer.h"
+#include "types.h"
 
 namespace tfe::core {
 
-    /**
-     * @class Board
-     * @brief Manages the state and logic of the 2048 game board.
-     */
     class Board {
     public:
         explicit Board(int size = 4);
         void reset();
 
-        int getSize() const;
-        const Grid& getGrid() const;
+        int getSize() const { return 4; }
 
-        void setTile(int row, int col, Tile value);
+        // Chuyển đổi Bitboard thành Grid vector để GUI vẽ
+        Grid getGrid() const;
+
+        // Lấy giá trị số mũ tại ô (r, c)
         Tile getTile(int row, int col) const;
-        int getTileId(int row, int col) const;
+        void setTile(int row, int col, Tile value);  // value là số mũ
 
         bool move(Direction dir);
         void spawnRandomTile();
-        bool isGameOver() const; // Cannot be const as it may fire a notification
+        bool isGameOver() const;
 
-        struct Position {
-            int r, c;
-        };
+        int getScore() const { return score_; }
+        int getHighScore() const { return highScore_; }
+        bool hasWon() const { return hasReachedWinTile_; }
 
-        Position getLastSpawnPos() const { return lastSpawnPos_; }
+        // Observer Pattern
+        void addObserver(IGameObserver* observer);
+        void removeObserver(IGameObserver* observer);
 
-        void addObserver(tfe::IGameObserver* observer);
-        void removeObserver(tfe::IGameObserver* observer);
-
-        int getScore() const;
-        int getHighScore() const;
-        bool hasWon() const;
-
+        // Save/Load
         GameState getState() const;
         void loadState(const GameState& state);
 
     private:
-        int size_;
-        Grid grid_;
-        int score_;
-        int highScore_;
-        bool hasReachedWinTile_;
+        Bitboard board_ = 0;  // Biến duy nhất chứa dữ liệu bàn cờ!
+        int score_ = 0;
+        int highScore_ = 0;
+        bool hasReachedWinTile_ = false;
 
-        std::vector<tfe::IGameObserver*> observers_;
-        std::vector<std::vector<int>> idGrid_;
-        int nextId_ = 1;
+        std::vector<IGameObserver*> observers_;
 
-        Position lastSpawnPos_ = {-1, -1};
-        std::vector<Position> mergedPos_;
-
-        void compress(std::vector<Tile>& row, std::vector<int>& idRow) const;
-        void merge(std::vector<Tile>& row, std::vector<int>& idRow);
-
-        void reverse();
+        // Helper private
         void transpose();
-        bool moveLeft();
 
-        // --- Notifier methods ---
-        void notifyTileSpawn(int r, int c, Tile value) const;
-        void notifyTileMerge(int r, int c, Tile newValue) const;
-        void notifyTileMove(int fromR, int fromC, int toR, int toC, Tile value) const;
-        void notifyGameOver() const;
+        // Notifications
         void notifyGameReset() const;
-
-        void clearEffects() {
-            mergedPos_.clear();
-            lastSpawnPos_ = {-1, -1};
-        }
+        void notifyGameOver() const;
+        void notifyTileSpawn(int r, int c, int value) const;
+        void notifyTileMove(int fromR, int fromC, int toR, int toC, Tile value) const;
+        void notifyTileMerge(int r, int c, Tile newValue) const;
     };
 }  // namespace tfe::core

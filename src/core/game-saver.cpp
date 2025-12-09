@@ -4,53 +4,32 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-#include "platform.h"
-
 using json = nlohmann::json;
 
 namespace tfe::core {
 
-    // Helper: Get save file path (same directory as scores.json)
-    std::filesystem::path getSavePath() {
-        auto path = tfe::platform::get_user_data_directory();
-        if (path.empty()) return "gamestate.json";  // Fallback
-
-        path /= "2048-cpp";
-        std::filesystem::create_directories(path);
-        return path / "gamestate.json";
-    }
+    static std::string getSavePath() { return "savegame.json"; }
 
     void GameSaver::save(const GameState& state) {
         json j;
         j["score"] = state.score;
-        j["nextId"] = state.nextId;
-        j["grid"] = state.grid;
-        j["idGrid"] = state.idGrid;
-
+        j["board"] = state.board;  // json hỗ trợ uint64_t
         if (std::ofstream file(getSavePath()); file.is_open()) {
-            file << j.dump(4);  // Pretty print with 4 indents
+            file << j.dump(4);
         }
     }
 
     std::optional<GameState> GameSaver::load() {
-        std::filesystem::path path = getSavePath();
-        if (!std::filesystem::exists(path)) {
-            return std::nullopt;
-        }
-
-        std::ifstream file(path);
+        if (!std::filesystem::exists(getSavePath())) return std::nullopt;
+        std::ifstream file(getSavePath());
         if (!file.is_open()) return std::nullopt;
 
         try {
             json j;
             file >> j;
-
             GameState state;
             state.score = j.at("score").get<int>();
-            state.nextId = j.at("nextId").get<int>();
-            state.grid = j.at("grid").get<Grid>();
-            state.idGrid = j.at("idGrid").get<std::vector<std::vector<int>>>();
-
+            state.board = j.at("board").get<Bitboard>();
             return state;
         } catch (...) {
             return std::nullopt;
@@ -58,8 +37,8 @@ namespace tfe::core {
     }
 
     void GameSaver::clearSave() {
-        if (const std::filesystem::path path = getSavePath(); std::filesystem::exists(path)) {
-            std::filesystem::remove(path);
+        if (std::filesystem::exists(getSavePath())) {
+            std::filesystem::remove(getSavePath());
         }
     }
 
