@@ -22,47 +22,59 @@ namespace tfe::game {
      * After the loop ends (e.g., user quits), it cleans up the console screen.
      */
     void Game::run() {
+        bool needRender = true;
+
         while (isRunning_) {
+            if (needRender) {
+                tfe::renderer::ConsoleRenderer::render(board_);
+                needRender = false;
+            }
+
             // 1. Render the current board state.
-            renderer_.render(board_);
+            tfe::renderer::ConsoleRenderer::render(board_);
 
             // 2. Check for game over condition.
             if (board_.isGameOver()) {
                 tfe::score::ScoreManager::save_game(board_.getScore(), board_.hasWon());
-                renderer_.showGameOver();
+                tfe::renderer::ConsoleRenderer::showGameOver();
                 // Wait for any key press to exit or handle restart logic.
                 // For now, it just exits.
-                inputHandler_.readInput();
+                tfe::input::InputHandler::readInput();
                 break;
             }
 
             // 3. Read user input.
-            const auto command = inputHandler_.readInput();
+            const auto command = tfe::input::InputHandler::readInput();
 
             // 4. Update game logic based on input.
+            bool moved = false;
             switch (command) {
                 case input::InputHandler::InputCommand::Quit:
                     isRunning_ = false;
                     break;
                 case input::InputHandler::InputCommand::MoveUp:
-                    board_.move(core::Direction::Up);
+                    moved = board_.move(core::Direction::Up);
                     break;
                 case input::InputHandler::InputCommand::MoveDown:
-                    board_.move(core::Direction::Down);
+                    moved = board_.move(core::Direction::Down);
                     break;
                 case input::InputHandler::InputCommand::MoveLeft:
-                    board_.move(core::Direction::Left);
+                    moved = board_.move(core::Direction::Left);
                     break;
                 case input::InputHandler::InputCommand::MoveRight:
-                    board_.move(core::Direction::Right);
+                    moved = board_.move(core::Direction::Right);
                     break;
                 default:
                     // If the user presses an invalid key or a move doesn't change the board,
                     // the loop will simply re-render and wait for the next input.
                     break;
             }
+
+            if (moved) {
+                needRender = true;
+            }
         }
 
-        renderer_.clear();  // Clean up the screen on exit.
+        tfe::renderer::ConsoleRenderer::clear();  // Clean up the screen on exit.
     }
 }  // namespace tfe::game
