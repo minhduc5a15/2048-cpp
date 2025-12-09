@@ -18,3 +18,4 @@ build.sh
 .venv
 __pycache__/
 *.pyc
+*.so
