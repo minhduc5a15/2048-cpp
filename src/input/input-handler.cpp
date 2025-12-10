@@ -23,7 +23,6 @@ namespace tfe::input {
     }
 
     InputHandler::InputCommand InputHandler::readInput() {
-
         // _getch() blocks until a key is pressed
         int c = _getch();
 
@@ -119,6 +118,9 @@ namespace tfe::input {
                 return InputCommand::MoveRight;
             case 'q':
                 return InputCommand::Quit;
+            case 'p':
+            case 'P':
+                return InputCommand::AutoPlay;
             case '\033': {
                 char seq[2];
                 if (read(STDIN_FILENO, &seq[0], 1) == -1) return InputCommand::None;

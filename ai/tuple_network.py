@@ -4,22 +4,22 @@ import os
 
 class TupleNetwork:
     def __init__(self, load_path=None):
-        # Bảng trọng số: 65536 trạng thái (16-bit row)
+        # Weight table: 65536 states (16-bit row)
         self.weights = [0.0] * 65536
 
         if load_path and os.path.exists(load_path):
             self.load(load_path)
 
     def get_value(self, board_state):
-        score = 0
+        score = 0.0
 
-        # 1. Tính điểm 4 hàng ngang
+        # 1. Calculate score for 4 horizontal rows
         score += self.weights[(board_state >> 0) & 0xFFFF]
         score += self.weights[(board_state >> 16) & 0xFFFF]
         score += self.weights[(board_state >> 32) & 0xFFFF]
         score += self.weights[(board_state >> 48) & 0xFFFF]
 
-        # 2. Tính điểm 4 cột dọc (bằng cách xoay bàn cờ)
+        # 2. Calculate score for 4 vertical columns (by transposing the board)
         t_board = self._transpose(board_state)
         score += self.weights[(t_board >> 0) & 0xFFFF]
         score += self.weights[(t_board >> 16) & 0xFFFF]
@@ -29,19 +29,18 @@ class TupleNetwork:
         return score
 
     def update(self, board_state, delta, learning_rate):
-        # Cập nhật cho hàng ngang
+        # Update for horizontal rows
         for i in range(0, 64, 16):
             row_idx = (board_state >> i) & 0xFFFF
             self.weights[row_idx] += learning_rate * delta
-
-        # Cập nhật cho cột dọc
+        # Update for vertical columns
         t_board = self._transpose(board_state)
         for i in range(0, 64, 16):
             col_idx = (t_board >> i) & 0xFFFF
             self.weights[col_idx] += learning_rate * delta
 
     def _transpose(self, x):
-        # Thuật toán xoay bitboard 4x4 (mỗi ô 4 bit) tương tự C++
+        # 4x4 bitboard transpose algorithm (each cell 4 bits) similar to C++
         a1 = x & 0xF0F00F0FF0F00F0F
         a2 = x & 0x0000F0F00000F0F0
         a3 = x & 0x0F0F00000F0F0000
@@ -53,7 +52,7 @@ class TupleNetwork:
         return b1 | (b2 >> 24) | (b3 << 24)
 
     def save(self, path):
-        # Đảm bảo thư mục tồn tại
+        # Ensure the directory exists
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'wb') as f:
             pickle.dump(self.weights, f)

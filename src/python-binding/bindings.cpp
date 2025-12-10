@@ -1,10 +1,10 @@
 #include <pybind11/pybind11.h>
-#include <pybind11/stl.h> // Tự động chuyển đổi std::vector sang Python List
+#include <pybind11/stl.h> // Automatically convert std::vector to Python List
 #include "../core/board.h"
 
 namespace py = pybind11;
 
-// Wrapper để lộ Enum Direction cho Python
+// Wrapper to expose Enum Direction to Python
 void init_enums(py::module_& m) {
     py::enum_<tfe::core::Direction>(m, "Direction")
         .value("Up", tfe::core::Direction::Up)
@@ -20,27 +20,27 @@ PYBIND11_MODULE(py2048, m) {
     init_enums(m);
 
     py::class_<tfe::core::Board>(m, "Board")
-        .def(py::init<>()) // Constructor mặc định
+        .def(py::init<>()) // Default constructor
         .def("reset", &tfe::core::Board::reset)
         
-        // Hàm di chuyển, trả về true nếu bàn cờ thay đổi
+        // Move function, returns true if board changed
         .def("move", &tfe::core::Board::move)
         
         .def("is_game_over", &tfe::core::Board::isGameOver)
         .def("get_score", &tfe::core::Board::getScore)
         
-        // Trả về Grid (List[List[int]]) để vẽ UI hoặc debug
+        // Return Grid (List[List[int]]) for UI rendering or debugging
         .def("get_grid", &tfe::core::Board::getGrid)
         
-        // QUAN TRỌNG CHO AI: Lấy trực tiếp Bitboard (số nguyên 64-bit)
-        // Việc này nhanh hơn nhiều so với get_grid vì không phải copy mảng
+        // CRITICAL FOR AI: Get raw Bitboard (64-bit integer)
+        // Much faster than get_grid as it avoids array copying
         .def("get_state", [](const tfe::core::Board& b) {
             return b.getState().board;
         })
         
-        // Hàm set state (để AI load lại trạng thái nếu cần - ví dụ MCTS)
+        // Set state function (for AI to reload state - e.g., MCTS)
         .def("set_state", [](tfe::core::Board& b, uint64_t board, int score) {
-            // Chúng ta cần tạo struct GameState tạm
+            // Create a temporary GameState struct
             tfe::core::GameState state;
             state.board = board;
             state.score = score;

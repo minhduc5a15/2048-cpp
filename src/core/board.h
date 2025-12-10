@@ -13,12 +13,14 @@ namespace tfe::core {
 
         int getSize() const { return 4; }
 
-        // Chuyển đổi Bitboard thành Grid vector để GUI vẽ
+        // Convert Bitboard to Grid vector for GUI rendering
         Grid getGrid() const;
 
-        // Lấy giá trị số mũ tại ô (r, c)
+        // Get exponent value at (row, col)
         Tile getTile(int row, int col) const;
-        void setTile(int row, int col, Tile value);  // value là số mũ
+        
+        // Set exponent value at (row, col)
+        void setTile(int row, int col, Tile value); 
 
         bool move(Direction dir);
         void spawnRandomTile();
@@ -37,7 +39,7 @@ namespace tfe::core {
         void loadState(const GameState& state);
 
     private:
-        Bitboard board_ = 0;  // Biến duy nhất chứa dữ liệu bàn cờ!
+        Bitboard board_ = 0;  // The only variable containing board data!
         int score_ = 0;
         int highScore_ = 0;
         bool hasReachedWinTile_ = false;

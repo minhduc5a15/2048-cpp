@@ -16,7 +16,7 @@ namespace tfe::input {
         ~InputHandler();
 
         // Enum representing the high-level commands that can be issued by the user.
-        enum class InputCommand { None, MoveUp, MoveDown, MoveLeft, MoveRight, Quit };
+        enum class InputCommand { None, MoveUp, MoveDown, MoveLeft, MoveRight, Quit, AutoPlay };
 
         /**
          * @brief Reads and interprets the next keyboard input from the user.

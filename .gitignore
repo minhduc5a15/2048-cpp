@@ -19,3 +19,7 @@ build.sh
 __pycache__/
 *.pyc
 *.so
+
+# Ignore training weights
+*.pkl
+*.bin

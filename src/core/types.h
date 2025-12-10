@@ -3,17 +3,17 @@
 #include <vector>
 
 namespace tfe::core {
-    // Tile lưu số mũ (0..15). Ví dụ: 1 -> 2, 2 -> 4. 0 là ô trống.
+    // Tile stores the exponent (0..15). For example: 1 -> 2, 2 -> 4. 0 is an empty tile.
     using Tile = uint8_t;
 
-    // Bitboard 64-bit chứa toàn bộ bàn cờ 4x4.
-    // Cấu trúc bộ nhớ: [Hàng 3][Hàng 2][Hàng 1][Hàng 0] (Mỗi hàng 16 bit)
+    // 64-bit Bitboard containing the entire 4x4 board.
+    // Memory layout: [Row 3][Row 2][Row 1][Row 0] (Each row is 16 bits)
     using Bitboard = uint64_t;
 
-    // Một hàng 4 ô (4x4 bit = 16 bit)
+    // A row of 4 tiles (4x4 bits = 16 bits)
     using Row = uint16_t;
 
-    // Grid cũ vẫn giữ để dùng cho GUI (render giá trị thực ra màn hình)
+    // The old Grid is kept for GUI usage (rendering actual values to the screen)
     using Grid = std::vector<std::vector<int>>;
 
     enum class Direction { Up, Down, Left, Right };
@@ -21,6 +21,6 @@ namespace tfe::core {
     struct GameState {
         Bitboard board;
         int score;
-        // Các biến khác như idGrid tạm thời bỏ qua ở Core AI để tối ưu tốc độ
+        // Other variables like idGrid are temporarily ignored in the Core AI for speed optimization
     };
 }  // namespace tfe::core

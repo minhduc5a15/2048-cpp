@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
-#include <fstream> // Cần thêm thư viện này
-#include <iostream> // Để in log
+#include <fstream>
+#include <iostream> 
 
 namespace tfe::core {
 
@@ -12,8 +12,8 @@ namespace tfe::core {
     int LookupTable::scoreTable[65536];
     float LookupTable::heuristicTable[65536];
 
-    // Các trọng số Heuristic (tham khảo từ nneonneo)
-    // Sau này chúng ta sẽ dùng RL để tinh chỉnh các số này
+    // Heuristic weights (referenced from nneonneo)
+    // Later we will use RL to refine these numbers
     static const float SCORE_LOST_PENALTY = 200000.0f;
     static const float SCORE_MONOTONICITY_POWER = 4.0f;
     static const float SCORE_MONOTONICITY_WEIGHT = 47.0f;
@@ -36,7 +36,6 @@ namespace tfe::core {
         }
     }
 
-    // --- THÊM HÀM NÀY ---
     bool LookupTable::loadWeights(const char* filepath) {
         std::ifstream file(filepath, std::ios::binary);
         if (!file.is_open()) {
@@ -52,13 +51,12 @@ namespace tfe::core {
             return false;
         }
 
-        // Đọc đè lên bảng heuristicTable
+        // Overwrite heuristicTable
         file.read(reinterpret_cast<char*>(heuristicTable), count * sizeof(float));
         
         std::cout << "[Core] Successfully loaded AI weights from " << filepath << "\n";
         return true;
     }
-    // -------------------
 
     static std::vector<int> unpack(int row) {
         std::vector<int> line(4);
@@ -81,7 +79,7 @@ namespace tfe::core {
     void LookupTable::initRow(int row) {
         auto line = unpack(row);
 
-        // 1. Tính Heuristic Score (Đánh giá độ tốt của hàng này)
+        // 1. Calculate Heuristic Score (Evaluate goodness of this row)
         float sum = 0;
         int empty = 0;
         int merges = 0;
@@ -112,21 +110,21 @@ namespace tfe::core {
             SCORE_MONOTONICITY_WEIGHT * std::min(mono_left, mono_right) -
             SCORE_SUM_WEIGHT * sum;
 
-        // 2. Tính Move Left Logic
+        // 2. Calculate Move Left Logic
         int score = 0;
         std::vector<int> temp;
-        for (int val : line) if (val != 0) temp.push_back(val); // Dồn
+        for (int val : line) if (val != 0) temp.push_back(val); // Compress
         
         if (!temp.empty()) {
             for (size_t i = 0; i < temp.size() - 1; ++i) {
-                if (temp[i] == temp[i+1]) { // Gộp
+                if (temp[i] == temp[i+1]) { // Merge
                     temp[i]++; 
-                    score += (1 << temp[i]); // Cộng điểm thực (2^k)
+                    score += (1 << temp[i]); // Add actual score (2^k)
                     temp.erase(temp.begin() + i + 1);
                 }
             }
         }
-        while (temp.size() < 4) temp.push_back(0); // Điền 0
+        while (temp.size() < 4) temp.push_back(0); // Fill with 0
 
         moveLeftTable[row] = pack(temp);
         scoreTable[row] = score;

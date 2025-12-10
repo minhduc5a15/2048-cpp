@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <vector>
 
 namespace tfe::score {
 
@@ -15,14 +14,14 @@ namespace tfe::score {
 
     // Helper to get the full, platform-specific path for the score file.
     std::filesystem::path getScoreFilePath() {
-        std::filesystem::path userDataPath = tfe::platform::get_user_data_directory();
+        const std::filesystem::path userDataPath = tfe::platform::get_user_data_directory();
         if (userDataPath.empty()) {
             // Fallback to current directory if we can't get a user data path
             return "scores.json";
         }
 
         // Create a dedicated directory for our app inside the user data folder
-        std::filesystem::path appDataPath = userDataPath / "2048-cpp";
+        const std::filesystem::path appDataPath = userDataPath / "2048-cpp";
         std::filesystem::create_directories(appDataPath); // a-cpp
 
         return appDataPath / "scores.json";
@@ -50,8 +49,7 @@ namespace tfe::score {
         while (std::getline(file, line)) {
             if (line.empty()) continue;
             try {
-                json game = json::parse(line);
-                if (game.contains("score") && game["score"].is_number_integer()) {
+                if (json game = json::parse(line); game.contains("score") && game["score"].is_number_integer()) {
                     if (game["score"] > highScore) {
                         highScore = game["score"];
                     }
@@ -76,8 +74,7 @@ namespace tfe::score {
         newGame["is_new_highscore"] = isNewRecord;
 
         // Open the file in append mode.
-        std::ofstream outputFile(scorePath, std::ios::app);
-        if (outputFile.is_open()) {
+        if (std::ofstream outputFile(scorePath, std::ios::app); outputFile.is_open()) {
             // Write the new game object as a single line, followed by a newline.
             outputFile << newGame.dump() << std::endl;
         } else {

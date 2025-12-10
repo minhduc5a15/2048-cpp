@@ -1,5 +1,9 @@
 #include "game.h"
 
+#include <chrono>
+#include <thread>
+
+#include "core/ai_solver.h"
 #include "score/score-manager.h"
 
 namespace tfe::game {
@@ -64,6 +68,31 @@ namespace tfe::game {
                 case input::InputHandler::InputCommand::MoveRight:
                     moved = board_.move(core::Direction::Right);
                     break;
+
+                case input::InputHandler::InputCommand::AutoPlay: {
+                    // Chạy vòng lặp AI liên tục cho đến khi thua
+                    while (!board_.isGameOver() && isRunning_) {
+                        // 1. AI suy nghĩ (Depth 4-6)
+                        auto bestDir = tfe::core::AISolver::findBestMove(board_, 6);
+
+                        // 2. Thực hiện nước đi
+                        bool aiMoved = board_.move(bestDir);
+
+                        // 3. Vẽ lại màn hình
+                        tfe::renderer::ConsoleRenderer::render(board_);
+
+                        // 4. Ngủ một chút để mắt người kịp nhìn (50ms)
+                        // Giảm xuống 0ms nếu muốn xem tốc độ bàn thờ
+                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+                        if (!aiMoved) {
+                            // AI bị kẹt (hiếm khi xảy ra với depth 4)
+                            break;
+                        }
+                    }
+                    needRender = true;  // Vẽ lại lần cuối khi thoát vòng lặp
+                    break;
+                }
                 default:
                     // If the user presses an invalid key or a move doesn't change the board,
                     // the loop will simply re-render and wait for the next input.

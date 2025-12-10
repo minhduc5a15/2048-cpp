@@ -13,7 +13,7 @@ namespace tfe::core {
     void GameSaver::save(const GameState& state) {
         json j;
         j["score"] = state.score;
-        j["board"] = state.board;  // json hỗ trợ uint64_t
+        j["board"] = state.board;
         if (std::ofstream file(getSavePath()); file.is_open()) {
             file << j.dump(4);
         }
@@ -27,7 +27,7 @@ namespace tfe::core {
         try {
             json j;
             file >> j;
-            GameState state;
+            GameState state{};
             state.score = j.at("score").get<int>();
             state.board = j.at("board").get<Bitboard>();
             return state;
