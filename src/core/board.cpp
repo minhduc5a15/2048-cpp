@@ -28,8 +28,6 @@ namespace tfe::core {
             LookupTable::init();
 
             // Attempt to load weight file.
-            // Priority:
-            // 1. Same directory (./build/bin/tuple_weights.bin)
             LookupTable::loadWeights("./build/bin/tuple_weights.bin");
 
             tableInitialized = true;

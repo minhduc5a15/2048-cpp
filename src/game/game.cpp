@@ -70,27 +70,23 @@ namespace tfe::game {
                     break;
 
                 case input::InputHandler::InputCommand::AutoPlay: {
-                    // Chạy vòng lặp AI liên tục cho đến khi thua
                     while (!board_.isGameOver() && isRunning_) {
-                        // 1. AI suy nghĩ (Depth 4-6)
                         const auto bestDir = tfe::core::AISolver::findBestMove(board_, 12);
 
-                        // 2. Thực hiện nước đi
                         const bool aiMoved = board_.move(bestDir);
 
-                        // 3. Vẽ lại màn hình
                         tfe::renderer::ConsoleRenderer::render(board_);
 
-                        // 4. Ngủ một chút để mắt người kịp nhìn (50ms)
-                        // Giảm xuống 0ms nếu muốn xem tốc độ bàn thờ
-                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                        // fast, fast, fast and fast
+                        std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
                         if (!aiMoved) {
-                            // AI bị kẹt (hiếm khi xảy ra với depth 4)
-                            break;
+                            // AI got stuck
+                            isRunning_ = false;
+                            throw std::runtime_error("AI made an invalid move or got stuck. Exiting autoplay.");
                         }
                     }
-                    needRender = true;  // Vẽ lại lần cuối khi thoát vòng lặp
+                    needRender = true;
                     break;
                 }
                 default:

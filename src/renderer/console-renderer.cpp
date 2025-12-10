@@ -106,8 +106,9 @@ namespace tfe::renderer {
      * This function clears the screen, prints the title, then iterates through the grid
      * to draw each tile with its corresponding color and value. Finally, it displays the controls.
      * @param board The game board to be rendered.
+     * @param isAutoPlay
      */
-    void ConsoleRenderer::render(const tfe::core::Board& board) {
+    void ConsoleRenderer::render(const tfe::core::Board& board, const bool isAutoPlay) {
         // Clear the console before rendering the new frame.
         clear();
         // Retrieve the grid data and its size from the board.
@@ -141,8 +142,7 @@ namespace tfe::renderer {
             std::cout << "\n\n";
         }
         // Print control instructions at the bottom.
-        const auto command = input::InputHandler::readInput();
-        if (command != input::InputHandler::InputCommand::AutoPlay) {
+        if (!isAutoPlay) {
             std::cout << "Controls: WASD or Arrows to move. Q to Quit.\n";
         }
     }

@@ -7,7 +7,7 @@ namespace tfe::renderer {
     class ConsoleRenderer {
     public:
         // Renders the current state of the game board to the console.
-        static void render(const tfe::core::Board& board);
+        static void render(const tfe::core::Board& board, bool isAutoPlay = false);
 
         // Clears the console screen.
         static void clear();
