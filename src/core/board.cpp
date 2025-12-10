@@ -1,5 +1,7 @@
 #include "board.h"
 
+#include <iostream>
+
 #include "config.h"
 #include "lookup_table.h"
 #include "score/score-manager.h"
@@ -25,11 +27,8 @@ namespace tfe::core {
             LookupTable::init();
 
             // Attempt to load weight file.
-            // Priority:
-            // 1. Same directory (./tuple_weights.bin)
-            // 2. Parent directory (../tuple_weights.bin - for when running from build/)
-            if (!LookupTable::loadWeights("tuple_weights.bin")) {
-                LookupTable::loadWeights("../tuple_weights.bin");
+            if (!LookupTable::loadWeights("build/bin/tuple_weights.bin")) {
+                std::cerr << "[Core] Warning: Could not open weights file at build/bin/tuple_weights.bin.";
             }
 
             tableInitialized = true;
