@@ -23,6 +23,15 @@ namespace tfe::core {
         static bool tableInitialized = false;
         if (!tableInitialized) {
             LookupTable::init();
+            
+            // Cố gắng load file trọng số.
+            // Thứ tự ưu tiên: 
+            // 1. Cùng thư mục chạy (./tuple_weights.bin)
+            // 2. Thư mục cha (../tuple_weights.bin - cho trường hợp chạy từ build/)
+            if (!LookupTable::loadWeights("tuple_weights.bin")) {
+                LookupTable::loadWeights("../tuple_weights.bin");
+            }
+            
             tableInitialized = true;
         }
         highScore_ = tfe::score::ScoreManager::load_high_score();
