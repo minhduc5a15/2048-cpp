@@ -9,17 +9,13 @@ def export_to_binary(pkl_path="ai/weights.pkl", bin_path="build/bin/tuple_weight
         print(f"Error: Not found {pkl_path}")
         return
 
-    # Load weights từ Python
     net = TupleNetwork(load_path=pkl_path)
     print(f"Loading weights from {pkl_path}...")
     print(f"Total weights: {len(net.weights)}")
 
-    # Tạo thư mục nếu chưa có
     os.makedirs(os.path.dirname(bin_path), exist_ok=True)
 
-    # Ghi ra file binary
     with open(bin_path, "wb") as f:
-        # Ghi Header: Số lượng phần tử (uint32) - 65536
         f.write(struct.pack("I", len(net.weights)))
 
         # Ghi Data: Mảng float
