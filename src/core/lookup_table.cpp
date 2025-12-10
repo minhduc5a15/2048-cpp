@@ -1,38 +1,37 @@
 #include "lookup_table.h"
+
 #include <algorithm>
 #include <cmath>
-#include <vector>
 #include <fstream>
-#include <iostream> 
+#include <iostream>
+#include <vector>
 
 namespace tfe::core {
 
-    Row LookupTable::moveLeftTable[65536];
-    Row LookupTable::moveRightTable[65536];
-    int LookupTable::scoreTable[65536];
-    float LookupTable::heuristicTable[65536];
+    Row LookupTable::moveLeftTable[TABLE_SIZE];
+    Row LookupTable::moveRightTable[TABLE_SIZE];
+    int LookupTable::scoreTable[TABLE_SIZE];
+    float LookupTable::heuristicTable[TABLE_SIZE];
 
     // Heuristic weights (referenced from nneonneo)
     // Later we will use RL to refine these numbers
-    static const float SCORE_LOST_PENALTY = 200000.0f;
-    static const float SCORE_MONOTONICITY_POWER = 4.0f;
-    static const float SCORE_MONOTONICITY_WEIGHT = 47.0f;
-    static const float SCORE_SUM_POWER = 3.5f;
-    static const float SCORE_SUM_WEIGHT = 11.0f;
-    static const float SCORE_MERGES_WEIGHT = 700.0f;
-    static const float SCORE_EMPTY_WEIGHT = 270.0f;
+    static constexpr float SCORE_LOST_PENALTY = 200000.0f;
+    static constexpr float SCORE_MONOTONICITY_POWER = 4.0f;
+    static constexpr float SCORE_MONOTONICITY_WEIGHT = 47.0f;
+    static constexpr float SCORE_SUM_POWER = 3.5f;
+    static constexpr float SCORE_SUM_WEIGHT = 11.0f;
+    static constexpr float SCORE_MERGES_WEIGHT = 700.0f;
+    static constexpr float SCORE_EMPTY_WEIGHT = 270.0f;
 
-    static Row reverseRow(Row row) {
-        return (row >> 12) | ((row >> 4) & 0x00F0) | ((row << 4) & 0x0F00) | (row << 12);
-    }
+    static Row reverseRow(const Row row) { return (row >> 12) | ((row >> 4) & 0x00F0) | ((row << 4) & 0x0F00) | (row << 12); }
 
     void LookupTable::init() {
-        for (int i = 0; i < 65536; ++i) {
+        for (int i = 0; i < TABLE_SIZE; ++i) {
             initRow(i);
         }
         // Second pass for moveRightTable to ensure moveLeftTable is fully populated
-        for (int i = 0; i < 65536; ++i) {
-             moveRightTable[i] = reverseRow(moveLeftTable[reverseRow(i)]);
+        for (int i = 0; i < TABLE_SIZE; ++i) {
+            moveRightTable[i] = reverseRow(moveLeftTable[reverseRow(i)]);
         }
     }
 
@@ -46,19 +45,21 @@ namespace tfe::core {
         uint32_t count;
         file.read(reinterpret_cast<char*>(&count), sizeof(count));
 
-        if (count != 65536) {
+        if (count != TABLE_SIZE) {
             std::cerr << "[Core] Error: Invalid weights file size! Expected 65536, got " << count << "\n";
             return false;
         }
 
         // Overwrite heuristicTable
         file.read(reinterpret_cast<char*>(heuristicTable), count * sizeof(float));
-        
-        std::cout << "[Core] Successfully loaded AI weights from " << filepath << "\n";
+        file.read(reinterpret_cast<char*>(squareTable), count * sizeof(float));
+
+        std::cout << "[Core] Successfully loaded AI weights (Row + Square) " << filepath << "\n";
+
         return true;
     }
 
-    static std::vector<int> unpack(int row) {
+    static std::vector<int> unpack(const int row) {
         std::vector<int> line(4);
         line[0] = (row >> 0) & 0xF;
         line[1] = (row >> 4) & 0xF;
@@ -76,8 +77,8 @@ namespace tfe::core {
         return row;
     }
 
-    void LookupTable::initRow(int row) {
-        auto line = unpack(row);
+    void LookupTable::initRow(const int row) {
+        const auto line = unpack(row);
 
         // 1. Calculate Heuristic Score (Evaluate goodness of this row)
         float sum = 0;
@@ -86,13 +87,17 @@ namespace tfe::core {
         int prev = 0;
         int counter = 0;
 
-        for (int val : line) {
+        for (const int val : line) {
             sum += std::pow(val, SCORE_SUM_POWER);
             if (val == 0) {
                 empty++;
             } else {
-                if (prev == val) counter++;
-                else if (counter > 0) { merges += 1 + counter; counter = 0; }
+                if (prev == val)
+                    counter++;
+                else if (counter > 0) {
+                    merges += 1 + counter;
+                    counter = 0;
+                }
                 prev = val;
             }
         }
@@ -100,33 +105,33 @@ namespace tfe::core {
 
         float mono_left = 0, mono_right = 0;
         for (int i = 1; i < 4; ++i) {
-            if (line[i-1] > line[i]) mono_left += std::pow(line[i-1], SCORE_MONOTONICITY_POWER) - std::pow(line[i], SCORE_MONOTONICITY_POWER);
-            else mono_right += std::pow(line[i], SCORE_MONOTONICITY_POWER) - std::pow(line[i-1], SCORE_MONOTONICITY_POWER);
+            if (line[i - 1] > line[i])
+                mono_left += std::pow(line[i - 1], SCORE_MONOTONICITY_POWER) - std::pow(line[i], SCORE_MONOTONICITY_POWER);
+            else
+                mono_right += std::pow(line[i], SCORE_MONOTONICITY_POWER) - std::pow(line[i - 1], SCORE_MONOTONICITY_POWER);
         }
 
-        heuristicTable[row] = SCORE_LOST_PENALTY +
-            SCORE_EMPTY_WEIGHT * empty +
-            SCORE_MERGES_WEIGHT * merges -
-            SCORE_MONOTONICITY_WEIGHT * std::min(mono_left, mono_right) -
-            SCORE_SUM_WEIGHT * sum;
+        heuristicTable[row] =
+            SCORE_LOST_PENALTY + SCORE_EMPTY_WEIGHT * empty + SCORE_MERGES_WEIGHT * merges - SCORE_MONOTONICITY_WEIGHT * std::min(mono_left, mono_right) - SCORE_SUM_WEIGHT * sum;
 
         // 2. Calculate Move Left Logic
         int score = 0;
         std::vector<int> temp;
-        for (int val : line) if (val != 0) temp.push_back(val); // Compress
-        
+        for (int val : line)
+            if (val != 0) temp.push_back(val);  // Compress
+
         if (!temp.empty()) {
             for (size_t i = 0; i < temp.size() - 1; ++i) {
-                if (temp[i] == temp[i+1]) { // Merge
-                    temp[i]++; 
-                    score += (1 << temp[i]); // Add actual score (2^k)
+                if (temp[i] == temp[i + 1]) {  // Merge
+                    temp[i]++;
+                    score += (1 << temp[i]);  // Add actual score (2^k)
                     temp.erase(temp.begin() + i + 1);
                 }
             }
         }
-        while (temp.size() < 4) temp.push_back(0); // Fill with 0
+        while (temp.size() < 4) temp.push_back(0);  // Fill with 0
 
         moveLeftTable[row] = pack(temp);
         scoreTable[row] = score;
     }
-}
+}  // namespace tfe::core

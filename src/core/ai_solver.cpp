@@ -1,6 +1,5 @@
 #include "ai_solver.h"
 
-#include <algorithm>
 #include <chrono>
 #include <limits>
 
@@ -31,16 +30,51 @@ namespace tfe::core {
         return count;
     }
 
+    // Helper: Evaluate 2x2 square based on LookupTable
+
+    static inline uint16_t getSquareIndex(const Bitboard board, const int shift) {
+        // Get the 2x2 square starting at bit `shift`
+        // Cell 1: shift
+        // Cell 2: shift + 4 (right)
+        // Cell 3: shift + 16 (below)
+        // Cell 4: shift + 20 (bottom right)
+
+        uint16_t idx = 0;
+        idx |= (board >> shift) & 0xF;
+        idx |= ((board >> (shift + 4)) & 0xF) << 4;
+        idx |= ((board >> (shift + 16)) & 0xF) << 8;
+        idx |= ((board >> (shift + 20)) & 0xF) << 12;
+        return idx;
+    }
+
     // Evaluate board based on LookupTable (trained weights)
     float AISolver::evaluateBoard(const Bitboard board) {
-        // Evaluate 4 horizontal rows
-        float score = LookupTable::heuristicTable[(board >> 0) & 0xFFFF] + LookupTable::heuristicTable[(board >> 16) & 0xFFFF] +
-                      LookupTable::heuristicTable[(board >> 32) & 0xFFFF] + LookupTable::heuristicTable[(board >> 48) & 0xFFFF];
+        float score = 0;
 
-        // Evaluate 4 vertical columns (Transpose)
+        // 1. Evaluate Rows
+        score += LookupTable::heuristicTable[(board >> 0) & 0xFFFF];
+        score += LookupTable::heuristicTable[(board >> 16) & 0xFFFF];
+        score += LookupTable::heuristicTable[(board >> 32) & 0xFFFF];
+        score += LookupTable::heuristicTable[(board >> 48) & 0xFFFF];
+
+        // 2. Evaluate Columns
         const Bitboard t = transpose64(board);
-        score += LookupTable::heuristicTable[(t >> 0) & 0xFFFF] + LookupTable::heuristicTable[(t >> 16) & 0xFFFF] + LookupTable::heuristicTable[(t >> 32) & 0xFFFF] +
-                 LookupTable::heuristicTable[(t >> 48) & 0xFFFF];
+        score += LookupTable::heuristicTable[(t >> 0) & 0xFFFF];
+        score += LookupTable::heuristicTable[(t >> 16) & 0xFFFF];
+        score += LookupTable::heuristicTable[(t >> 32) & 0xFFFF];
+        score += LookupTable::heuristicTable[(t >> 48) & 0xFFFF];
+
+        // 3. Evaluate Squares (NEW)
+        // There are 9 2x2 squares on a 4x4 board.
+        // The shift positions correspond to the top-left cell of each square:
+        // Row 0: 0, 4, 8
+        // Row 1: 16, 20, 24
+        // Row 2: 32, 36, 40
+        constexpr int shifts[] = {0, 4, 8, 16, 20, 24, 32, 36, 40};
+
+        for (const int s : shifts) {
+            score += LookupTable::squareTable[getSquareIndex(board, s)];
+        }
 
         return score;
     }

@@ -1,6 +1,7 @@
 #include "board.h"
 
 #include <algorithm>
+#include <iostream>
 
 #include "config.h"
 #include "lookup_table.h"
@@ -28,11 +29,8 @@ namespace tfe::core {
 
             // Attempt to load weight file.
             // Priority:
-            // 1. Same directory (./tuple_weights.bin)
-            // 2. Parent directory (../tuple_weights.bin - for when running from build/)
-            if (!LookupTable::loadWeights("tuple_weights.bin")) {
-                LookupTable::loadWeights("../tuple_weights.bin");
-            }
+            // 1. Same directory (./build/bin/tuple_weights.bin)
+            LookupTable::loadWeights("./build/bin/tuple_weights.bin");
 
             tableInitialized = true;
         }

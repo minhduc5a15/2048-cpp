@@ -5,6 +5,8 @@
 #include <sstream>
 #include <string>
 
+#include "input/input-handler.h"
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -32,7 +34,7 @@ namespace tfe::renderer {
         HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
         DWORD dwMode = 0;
         GetConsoleMode(hOut, &dwMode);
-        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING; // Enable virtual terminal processing.
+        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;  // Enable virtual terminal processing.
         SetConsoleMode(hOut, dwMode);
 #endif
     }
@@ -56,9 +58,7 @@ namespace tfe::renderer {
      * `\033[2J` clears the entire screen.
      * `\033[H` moves the cursor to the home position (top-left).
      */
-    void ConsoleRenderer::clear() {
-        std::cout << "\033[2J\033[H";
-    }
+    void ConsoleRenderer::clear() { std::cout << "\033[2J\033[H"; }
 
     /**
      * @brief Gets the ANSI color code for a tile based on its value.
@@ -116,8 +116,7 @@ namespace tfe::renderer {
 
         // Build and print the header with score information
         std::stringstream header;
-        header << ANSI_BOLD << "2048" << resetColor() << "   |   SCORE: " << board.getScore()
-               << "   |   BEST: " << board.getHighScore();
+        header << ANSI_BOLD << "2048" << resetColor() << "   |   SCORE: " << board.getScore() << "   |   BEST: " << board.getHighScore();
         std::cout << header.str() << "\n\n";
 
         // Loop through each row and column to render the grid.
@@ -142,7 +141,10 @@ namespace tfe::renderer {
             std::cout << "\n\n";
         }
         // Print control instructions at the bottom.
-        std::cout << "Controls: WASD or Arrows to move. Q to Quit.\n";
+        const auto command = input::InputHandler::readInput();
+        if (command != input::InputHandler::InputCommand::AutoPlay) {
+            std::cout << "Controls: WASD or Arrows to move. Q to Quit.\n";
+        }
     }
 
     /**
