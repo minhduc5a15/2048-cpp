@@ -1,10 +1,12 @@
 #include "ai_solver.h"
 
 #include <algorithm>
+#include <chrono>
 #include <limits>
 
 #include "config.h"
 #include "lookup_table.h"
+#include "transposition_table.h"
 
 namespace tfe::core {
 
@@ -43,66 +45,87 @@ namespace tfe::core {
         return score;
     }
 
-    Direction AISolver::findBestMove(const Board& boardData, int depth) {
-        const Bitboard currentBoard = boardData.getState().board;
-        float bestScore = -std::numeric_limits<float>::max();
-        int bestMove = -1;
+    Direction AISolver::findBestMove(const Board& board, const int depth) {
+        const Bitboard currentBoard = board.getState().board;
+        auto bestMove = Direction::Up;
 
-        // Try 4 directions: Up, Down, Left, Right
-        // Enum order: Up=0, Down=1, Left=2, Right=3
+        // Thinking time per move: 200ms
+        // Long enough to think carefully, fast enough not to lag
+        const auto startTime = std::chrono::high_resolution_clock::now();
 
-        constexpr Direction dirs[4] = {Direction::Up, Direction::Down, Direction::Left, Direction::Right};
+        // Clear old cache to prevent memory overflow (optional)
+        TranspositionTable::instance().clear();
 
-        for (int i = 0; i < 4; ++i) {
-            Bitboard nextBoard = currentBoard;
-            bool changed = false;
+        for (int dth = 1; dth <= depth; ++dth) {
+            float currentBestScore = -std::numeric_limits<float>::max();
+            auto currentBestMove = Direction::Up;
+            bool foundMove = false;
 
-            // --- Move Simulation Logic (Optimized for Bitboard) ---
-            const bool needTranspose = (dirs[i] == Direction::Up || dirs[i] == Direction::Down);
-            if (needTranspose) nextBoard = transpose64(nextBoard);
+            // Try 4 directions at the current depth
+            for (constexpr Direction dirs[4] = {Direction::Up, Direction::Down, Direction::Left, Direction::Right}; const auto dir : dirs) {
+                Bitboard nextBoard = currentBoard;
+                bool changed = false;
 
-            Bitboard tempBoard = 0;
-            for (int r = 0; r < 4; ++r) {
-                const Row row = (nextBoard >> (r * 16)) & Config::ROW_MASK;
-                Row newRow;
-                // Left or Up (transposed to Left) use moveLeftTable
-                if (dirs[i] == Direction::Left || dirs[i] == Direction::Up)
-                    newRow = LookupTable::moveLeftTable[row];
-                else
-                    newRow = LookupTable::moveRightTable[row];
-
-                tempBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
-            }
-            if (tempBoard != nextBoard) changed = true;
-            nextBoard = tempBoard;
-            if (needTranspose) nextBoard = transpose64(nextBoard);
-            // ---------------------------------------------------
-
-            if (changed) {
-                // Switch to computer's turn (spawn random tile) -> Expectation Node
-                float score = expectimax(nextBoard, depth - 1, false, 1.0f);
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestMove = i;
+                // Logic giả lập di chuyển (Move Simulation)
+                const bool needTranspose = (dir == Direction::Up || dir == Direction::Down);
+                if (needTranspose) nextBoard = transpose64(nextBoard);
+                Bitboard tempBoard = 0;
+                for (int r = 0; r < 4; ++r) {
+                    const Row row = (nextBoard >> (r * 16)) & Config::ROW_MASK;
+                    Row newRow;
+                    if (dir == Direction::Left || dir == Direction::Up)
+                        newRow = LookupTable::moveLeftTable[row];
+                    else
+                        newRow = LookupTable::moveRightTable[row];
+                    tempBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
                 }
+                if (tempBoard != nextBoard) changed = true;
+                nextBoard = tempBoard;
+                if (needTranspose) nextBoard = transpose64(nextBoard);
+                // ----------------------------------------
+
+                if (changed) {
+                    // Recursive call
+                    if (const float score = expectimax(nextBoard, dth, false, 1.0f); score > currentBestScore) {
+                        currentBestScore = score;
+                        currentBestMove = dir;
+                        foundMove = true;
+                    }
+                }
+            }
+
+            // Update the best result found at this depth
+            if (foundMove) {
+                bestMove = currentBestMove;
+            }
+
+            // Check time: If over 200ms, stop immediately and return the best available result
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+            if (constexpr long long timeLimitMs = 200; duration > timeLimitMs) {
+                break;
             }
         }
 
-        if (bestMove != -1) return dirs[bestMove];
-        return Direction::Up;  // Fallback
+        return bestMove;
     }
 
     float AISolver::expectimax(const Bitboard board, const int depth, const bool isPlayerTurn, const float cumulativeProb) {
-        // Pruning if probability is too low to matter
         if (cumulativeProb < 0.0001f || depth == 0) {
             return evaluateBoard(board);
         }
 
-        if (isPlayerTurn) {  // Max Node (Player)
+        // CHANCE NODE: Only cache computer's turn (spawning tiles) because this state repeats most often
+        if (!isPlayerTurn) {
+            if (float cachedScore; TranspositionTable::instance().get(board, depth, cachedScore)) {  // Check if already computed
+                return cachedScore;
+            }
+        }
+
+        if (isPlayerTurn) {  // Max Node (Lượt người chơi)
             float maxVal = -std::numeric_limits<float>::max();
             bool canMove = false;
 
-            // Try 4 directions
             for (int dir = 0; dir < 4; ++dir) {
                 Bitboard nextBoard = board;
                 const bool needTranspose = (dir == 0 || dir == 1);  // Up/Down
@@ -125,34 +148,37 @@ namespace tfe::core {
 
                 if (changed) {
                     canMove = true;
-                    const float val = expectimax(nextBoard, depth - 1, false, cumulativeProb);
-                    if (val > maxVal) maxVal = val;
+                    // Keep depth for Chance node
+                    if (const float val = expectimax(nextBoard, depth, false, cumulativeProb); val > maxVal) maxVal = val;
                 }
             }
-            // If no moves possible -> Game Over -> Heavy penalty
-            return canMove ? maxVal : 0;
+            return canMove ? maxVal : 0;  // Heavy penalty if no moves are possible
         }
-        // Chance Node (Computer spawns tile)
-        float avgScore = 0;
+
+        // Chance Node (Computer's turn)
+        float totalScore = 0;
         const int emptyCount = countEmpty(board);
         if (emptyCount == 0) return evaluateBoard(board);
 
-        const float prob2 = 0.9f * cumulativeProb / emptyCount;  // Probability of spawning 2
-        const float prob4 = 0.1f * cumulativeProb / emptyCount;  // Probability of spawning 4
-
-        // Iterate over all empty cells
+        // We separate cumulativeProb from the cached value
+        // The cached value must be the "pure average score" of the board state
         for (int i = 0; i < 16; ++i) {
             if (((board >> (i * 4)) & 0xF) == 0) {
-                // Spawn 2 (exponent 1)
+                // Spawn tile 2 (0.9 probability)
                 const Bitboard board2 = board | (static_cast<Bitboard>(1) << (i * 4));
-                avgScore += 0.9f * expectimax(board2, depth - 1, true, prob2);
+                totalScore += 0.9f * expectimax(board2, depth - 1, true, cumulativeProb * 0.9f);
 
-                // Spawn 4 (exponent 2)
+                // Spawn tile 4 (0.1 probability)
                 const Bitboard board4 = board | (static_cast<Bitboard>(2) << (i * 4));
-                avgScore += 0.1f * expectimax(board4, depth - 1, true, prob4);
+                totalScore += 0.1f * expectimax(board4, depth - 1, true, cumulativeProb * 0.1f);
             }
         }
-        // avgScore is already the weighted sum because probabilities were multiplied inside expectimax
-        return avgScore;
+
+        const float finalScore = totalScore / static_cast<float>(emptyCount);
+
+        // Store in cache for reuse
+        TranspositionTable::instance().put(board, depth, finalScore);
+
+        return finalScore;
     }
 }  // namespace tfe::core

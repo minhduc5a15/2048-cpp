@@ -73,7 +73,7 @@ namespace tfe::game {
                     // Chạy vòng lặp AI liên tục cho đến khi thua
                     while (!board_.isGameOver() && isRunning_) {
                         // 1. AI suy nghĩ (Depth 4-6)
-                        auto bestDir = tfe::core::AISolver::findBestMove(board_, 6);
+                        auto bestDir = tfe::core::AISolver::findBestMove(board_, 12);
 
                         // 2. Thực hiện nước đi
                         bool aiMoved = board_.move(bestDir);

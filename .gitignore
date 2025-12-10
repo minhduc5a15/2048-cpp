@@ -23,3 +23,5 @@ __pycache__/
 # Ignore training weights
 *.pkl
 *.bin
+
+train.sh
