@@ -1,6 +1,6 @@
 #include "board.h"
 
-#include <iostream>
+#include <algorithm>
 
 #include "config.h"
 #include "lookup_table.h"
@@ -21,14 +21,17 @@ namespace tfe::core {
         return b1 | (b2 >> 24) | (b3 << 24);
     }
 
-    Board::Board(int size) {
+    Board::Board(int) {
         static bool tableInitialized = false;
         if (!tableInitialized) {
             LookupTable::init();
 
             // Attempt to load weight file.
-            if (!LookupTable::loadWeights("build/bin/tuple_weights.bin")) {
-                std::cerr << "[Core] Warning: Could not open weights file at build/bin/tuple_weights.bin.";
+            // Priority:
+            // 1. Same directory (./tuple_weights.bin)
+            // 2. Parent directory (../tuple_weights.bin - for when running from build/)
+            if (!LookupTable::loadWeights("tuple_weights.bin")) {
+                LookupTable::loadWeights("../tuple_weights.bin");
             }
 
             tableInitialized = true;
@@ -67,9 +70,98 @@ namespace tfe::core {
 
     void Board::transpose() { board_ = transpose64(board_); }
 
+    // Helper to calculate move events for animations
+    static void generateMoveEvents(const Row row, const int rIdx, const bool isTransposed, const bool isReverse, const Board& board) {
+        int cells[4];
+        // Unpack row
+        for (int i = 0; i < 4; ++i) cells[i] = (row >> (i * 4)) & 0xF;
+
+        // If reverse (Right/Down), we simulate moving RIGHT by processing cells in reverse order or treating it as left move on reversed array
+        // Let's stick to "Standard Move Left" logic on the cells array, but if isReverse, we reverse the input first.
+
+        if (isReverse) {
+            std::ranges::reverse(cells);
+        }
+
+        // Standard Move Left Simulation
+        int targetPos = 0;
+        bool merged[4] = {false, false, false, false};  // Track merges at target positions
+        // Result array to track values at target positions for merge checks
+        int resultValues[4] = {0, 0, 0, 0};
+
+        for (int sourcePos = 0; sourcePos < 4; ++sourcePos) {
+            const int val = cells[sourcePos];
+            if (val == 0) continue;
+
+            // Check merge with previous tile
+            if (targetPos > 0 && resultValues[targetPos - 1] == val && !merged[targetPos - 1]) {
+                // MERGE
+                merged[targetPos - 1] = true;
+                resultValues[targetPos - 1]++;                        // Increment exponent
+                const int newVal = 1 << resultValues[targetPos - 1];  // Real value
+
+                // Calculate Coordinates
+                // We need to map sourcePos and (targetPos-1) back to real board coordinates.
+
+                const int mappedSrc = isReverse ? (3 - sourcePos) : sourcePos;
+                const int mappedDst = isReverse ? (3 - (targetPos - 1)) : (targetPos - 1);
+
+                int srcR, srcC, dstR, dstC;
+                if (isTransposed) {
+                    srcR = mappedSrc;
+                    srcC = rIdx;
+                    dstR = mappedDst;
+                    dstC = rIdx;
+                } else {
+                    srcR = rIdx;
+                    srcC = mappedSrc;
+                    dstR = rIdx;
+                    dstC = mappedDst;
+                }
+
+                // Fire move event for the merging tile
+                const int movingVal = 1 << val;
+                board.notifyTileMove(srcR, srcC, dstR, dstC, movingVal);
+
+                // Fire merge event at destination
+                board.notifyTileMerge(dstR, dstC, newVal);
+
+            } else {
+                // MOVE
+                resultValues[targetPos] = val;
+
+                const int mappedSrc = isReverse ? (3 - sourcePos) : sourcePos;
+                const int mappedDst = isReverse ? (3 - targetPos) : targetPos;
+
+                int srcR, srcC, dstR, dstC;
+                if (isTransposed) {
+                    srcR = mappedSrc;
+                    srcC = rIdx;
+                    dstR = mappedDst;
+                    dstC = rIdx;
+                } else {
+                    srcR = rIdx;
+                    srcC = mappedSrc;
+                    dstR = rIdx;
+                    dstC = mappedDst;
+                }
+
+                if (mappedSrc != mappedDst) {
+                    const int movingVal = 1 << val;
+                    board.notifyTileMove(srcR, srcC, dstR, dstC, movingVal);
+                }
+
+                targetPos++;
+            }
+        }
+    }
+
     bool Board::move(const Direction dir) {
+        const bool isTransposed = (dir == Direction::Up || dir == Direction::Down);
+        const bool isReverse = (dir == Direction::Right || dir == Direction::Down);
+
         // Normalize to Left/Right. If Up/Down, rotate the board
-        if (dir == Direction::Up || dir == Direction::Down) transpose();
+        if (isTransposed) transpose();
 
         Bitboard newBoard = 0;
         int moveScore = 0;
@@ -86,6 +178,14 @@ namespace tfe::core {
 
             moveScore += LookupTable::scoreTable[row];
             newBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
+
+            // Generate Animation Events
+            // We calculate events based on the *difference* between 'row' and 'newRow' logic
+            if (row != newRow || true) {  // Always check to be safe, or optimize
+                // Note: generateMoveEvents re-simulates the move to find *which* tile moved *where*.
+                // This is necessary because the bitboard/lookup table doesn't store "history".
+                generateMoveEvents(row, r, isTransposed, isReverse, *this);
+            }
         }
 
         const bool changed = (newBoard != board_);
@@ -96,7 +196,7 @@ namespace tfe::core {
         }
 
         // Rotate back if needed
-        if (dir == Direction::Up || dir == Direction::Down) transpose();
+        if (isTransposed) transpose();
 
         if (changed) {
             spawnRandomTile();
@@ -158,10 +258,10 @@ namespace tfe::core {
     void Board::notifyTileSpawn(const int r, const int c, const int value) const {
         for (auto* o : observers_) o->onTileSpawn(r, c, value);
     }
-    void Board::notifyTileMove(const int fromR, const int fromC, const int toR, const int toC, const Tile value) const {
+    void Board::notifyTileMove(const int fromR, const int fromC, const int toR, const int toC, const int value) const {
         for (auto* o : observers_) o->onTileMove(fromR, fromC, toR, toC, value);
     }
-    void Board::notifyTileMerge(const int r, const int c, const Tile newValue) const {
+    void Board::notifyTileMerge(const int r, const int c, const int newValue) const {
         for (auto* o : observers_) o->onTileMerge(r, c, newValue);
     }
 }  // namespace tfe::core

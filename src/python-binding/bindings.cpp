@@ -5,7 +5,7 @@
 namespace py = pybind11;
 
 // Wrapper to expose Enum Direction to Python
-void init_enums(py::module_& m) {
+void init_enums(const py::module_& m) {
     py::enum_<tfe::core::Direction>(m, "Direction")
         .value("Up", tfe::core::Direction::Up)
         .value("Down", tfe::core::Direction::Down)
@@ -39,9 +39,9 @@ PYBIND11_MODULE(py2048, m) {
         })
         
         // Set state function (for AI to reload state - e.g., MCTS)
-        .def("set_state", [](tfe::core::Board& b, uint64_t board, int score) {
+        .def("set_state", [](tfe::core::Board& b, const uint64_t board, const int score) {
             // Create a temporary GameState struct
-            tfe::core::GameState state;
+            tfe::core::GameState state{};
             state.board = board;
             state.score = score;
             b.loadState(state);

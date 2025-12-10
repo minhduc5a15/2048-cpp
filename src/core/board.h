@@ -38,6 +38,13 @@ namespace tfe::core {
         GameState getState() const;
         void loadState(const GameState& state);
 
+        // Notifications
+        void notifyGameReset() const;
+        void notifyGameOver() const;
+        void notifyTileSpawn(int r, int c, int value) const;
+        void notifyTileMove(int fromR, int fromC, int toR, int toC, int value) const;
+        void notifyTileMerge(int r, int c, int newValue) const;
+
     private:
         Bitboard board_ = 0;  // The only variable containing board data!
         int score_ = 0;
@@ -48,12 +55,5 @@ namespace tfe::core {
 
         // Helper private
         void transpose();
-
-        // Notifications
-        void notifyGameReset() const;
-        void notifyGameOver() const;
-        void notifyTileSpawn(int r, int c, int value) const;
-        void notifyTileMove(int fromR, int fromC, int toR, int toC, Tile value) const;
-        void notifyTileMerge(int r, int c, Tile newValue) const;
     };
 }  // namespace tfe::core

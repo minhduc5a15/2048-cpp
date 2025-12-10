@@ -1,7 +1,5 @@
 #pragma once
 
-#include "types.h"
-
 namespace tfe {
 
     /**
@@ -22,7 +20,7 @@ namespace tfe {
          * @param c The column where the tile spawned.
          * @param value The value of the new tile (e.g., 2 or 4).
          */
-        virtual void onTileSpawn(int r, int c, tfe::core::Tile value) = 0;
+        virtual void onTileSpawn(int r, int c, int value) = 0;
 
         /**
          * @brief Called when two tiles merge to form a new tile.
@@ -30,7 +28,7 @@ namespace tfe {
          * @param c The column where the merge occurred.
          * @param newValue The value of the newly formed tile (e.g., 8, 16, etc.).
          */
-        virtual void onTileMerge(int r, int c, tfe::core::Tile newValue) = 0;
+        virtual void onTileMerge(int r, int c, int newValue) = 0;
 
         /**
          * @brief Called when a tile moves from one position to another without merging.
@@ -40,7 +38,7 @@ namespace tfe {
          * @param toC The destination column.
          * @param value The value of the moving tile.
          */
-        virtual void onTileMove(int fromR, int fromC, int toR, int toC, tfe::core::Tile value) = 0;
+        virtual void onTileMove(int fromR, int fromC, int toR, int toC, int value) = 0;
 
         /**
          * @brief Called when the game is over.

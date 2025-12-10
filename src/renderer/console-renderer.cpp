@@ -90,7 +90,7 @@ namespace tfe::renderer {
             case 2048:
                 return "\033[48;5;220m\033[38;5;0m";  // Gold background, black text
             default:
-                return "\033[48;5;237m\033[38;5;255m";  // Dark grey background (for empty tiles), white text
+                return "\033[48;5;237m\033[38;5;255m";  // Dark gray background (for empty tiles), white text
         }
     }
 

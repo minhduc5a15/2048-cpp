@@ -20,9 +20,9 @@ namespace tfe::gui {
         void run();
 
         // --- IGameObserver Implementation ---
-        void onTileSpawn(int r, int c, tfe::core::Tile value) override;
-        void onTileMerge(int r, int c, tfe::core::Tile newValue) override;
-        void onTileMove(int fromR, int fromC, int toR, int toC, tfe::core::Tile value) override;
+        void onTileSpawn(int r, int c, int value) override;
+        void onTileMerge(int r, int c, int newValue) override;
+        void onTileMove(int fromR, int fromC, int toR, int toC, int value) override;
         void onGameOver() override;
         void onGameReset() override;
 
