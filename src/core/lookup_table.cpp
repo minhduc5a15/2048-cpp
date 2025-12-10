@@ -12,6 +12,7 @@ namespace tfe::core {
     Row LookupTable::moveRightTable[TABLE_SIZE];
     int LookupTable::scoreTable[TABLE_SIZE];
     float LookupTable::heuristicTable[TABLE_SIZE];
+    float LookupTable::squareTable[TABLE_SIZE];
 
     // Heuristic weights (referenced from nneonneo)
     // Later we will use RL to refine these numbers

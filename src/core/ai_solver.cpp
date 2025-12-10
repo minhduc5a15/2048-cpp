@@ -133,10 +133,10 @@ namespace tfe::core {
                 bestMove = currentBestMove;
             }
 
-            // Check time: If over 200ms, stop immediately and return the best available result
+            // Check time: If over 150ms, stop immediately and return the best available result
             auto currentTime = std::chrono::high_resolution_clock::now();
             const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
-            if (constexpr long long timeLimitMs = 200; duration > timeLimitMs) {
+            if (constexpr long long timeLimitMs = 150; duration > timeLimitMs) {
                 break;
             }
         }

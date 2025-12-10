@@ -75,10 +75,10 @@ namespace tfe::game {
 
                         const bool aiMoved = board_.move(bestDir);
 
-                        tfe::renderer::ConsoleRenderer::render(board_);
+                        tfe::renderer::ConsoleRenderer::render(board_, true);
 
                         // fast, fast, fast and fast
-                        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(0));
 
                         if (!aiMoved) {
                             // AI got stuck
