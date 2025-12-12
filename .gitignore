@@ -25,4 +25,4 @@ __pycache__/
 *.bin
 
 train.sh
-logs/*.txt
+logs/*.csv
