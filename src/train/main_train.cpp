@@ -5,7 +5,7 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         episodes = std::stoi(argv[1]);
     }
-    tfe::train::Trainer trainer(0.0025f);
+    tfe::train::Trainer trainer(0.0001f);
     trainer.run(episodes);
 
     return 0;

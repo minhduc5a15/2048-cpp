@@ -33,7 +33,7 @@ namespace tfe::train {
         return idx;
     }
 
-    Trainer::Trainer(float alpha) : alpha_(alpha), board_(4) {
+    Trainer::Trainer(const float alpha) : alpha_(alpha), board_(4) {
         // Ensure LookupTable is initialized (so the array is ready for writing)
         LookupTable::init();
 
@@ -51,17 +51,20 @@ namespace tfe::train {
         const auto now = std::chrono::system_clock::now();
         const auto in_time_t = std::chrono::system_clock::to_time_t(now);
         std::stringstream ss;
-        ss << "logs/train_cpp_" << std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S") << ".csv";
+        ss << "logs/train_cpp_stats_" << std::put_time(std::localtime(&in_time_t), "%Y%m%d_%H%M%S") << ".csv";
 
         logFile_.open(ss.str());
         // Write CSV Header
-        logFile_ << "Episode,Score,MaxTile,Steps,TimeMs\n";
+        logFile_ << "StartEp,EndEp,AvgScore,MaxScore,MaxTile,AvgSteps,AvgTimeMs,Elapsed\n";
 
-        std::cout << "Logging training to: " << ss.str() << std::endl;
+        std::cout << "Logging aggregated stats to: " << ss.str() << std::endl;
     }
 
-    void Trainer::logEpisode(const int episode, const int score, const int maxTile, const int steps, const double durationMs) {
-        logFile_ << episode << "," << score << "," << maxTile << "," << steps << "," << std::fixed << std::setprecision(2) << durationMs << "\n";
+    void Trainer::logChunk(const int startEp, const int endEp, const double avgScore, const int maxScore, const int maxTile, const double avgSteps, const double avgTime,
+                           const int elapsed) {
+        logFile_ << startEp << "," << endEp << "," << std::fixed << std::setprecision(2) << avgScore << "," << maxScore << "," << maxTile << "," << std::setprecision(1) << avgSteps
+                 << "," << std::setprecision(3) << avgTime << "," << elapsed << "\n";
+        logFile_.flush();
     }
 
     int Trainer::getMaxTile(const Board& board) {
@@ -101,15 +104,15 @@ namespace tfe::train {
         const float change = alpha_ * delta;
 
         // Update Rows
-        for (int i = 0; i < 64; i += 16) {
-            LookupTable::heuristicTable[(boardState >> i) & 0xFFFF] += change;
-        }
+        // for (int i = 0; i < 64; i += 16) {
+        //     LookupTable::heuristicTable[(boardState >> i) & 0xFFFF] += change;
+        // }
 
         // Update Cols
-        const uint64_t t = transpose64(boardState);
-        for (int i = 0; i < 64; i += 16) {
-            LookupTable::heuristicTable[(t >> i) & 0xFFFF] += change;
-        }
+        // const uint64_t t = transpose64(boardState);
+        // for (int i = 0; i < 64; i += 16) {
+        //     LookupTable::heuristicTable[(t >> i) & 0xFFFF] += change;
+        // }
 
         // Update Squares
         constexpr int shifts[] = {0, 4, 8, 16, 20, 24, 32, 36, 40};
@@ -160,13 +163,15 @@ namespace tfe::train {
         std::cout << "Starting C++ Training for " << episodes << " episodes..." << std::endl;
 
         const auto startTime = std::chrono::high_resolution_clock::now();
-        int maxScoreBatch = 0;
         int globalMaxScore = 0;
 
         const float startAlpha = alpha_;
 
+        constexpr int LOG_INTERVAL = 1000;
+
         for (int ep = 1; ep <= episodes; ++ep) {
-            const float progress = episodes;
+            const float progress = static_cast<float>(ep) / episodes;
+
             alpha_ = std::max(0.0001f, startAlpha * (1.0f - progress));
             auto epStart = std::chrono::high_resolution_clock::now();
 
@@ -206,20 +211,41 @@ namespace tfe::train {
             auto epEnd = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> duration = epEnd - epStart;
 
-            const int finalScore = board_.getScore();
-            if (finalScore > maxScoreBatch) maxScoreBatch = finalScore;
+            // chunk stats
+            int finalScore = board_.getScore();
+            int maxTile = getMaxTile(board_);
 
-            logEpisode(ep, finalScore, getMaxTile(board_), steps, duration.count());
+            chunkScoreSum_ += finalScore;
+            chunkMaxScore_ = std::max(chunkMaxScore_, finalScore);
+            chunkMaxTile_ = std::max(chunkMaxTile_, maxTile);
+            chunkStepsSum_ += steps;
+            chunkDurationSum_ += duration.count();
+
+            if (finalScore > globalMaxScore) {
+                globalMaxScore = finalScore;
+                if (globalMaxScore > 30000) {
+                    saveWeights("build/bin/tuple_weights_best.bin");
+                }
+            }
 
             // Log to the console every 1000 games (C++ is fast, so log less frequently)
-            if (ep % 1000 == 0) {
-                const auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(epEnd - startTime).count();
-                const double speed = static_cast<double>(totalTime) / ep;
+            if (ep % LOG_INTERVAL == 0) {
+                const double avgScore = static_cast<double>(chunkScoreSum_) / LOG_INTERVAL;
+                const double avgSteps = static_cast<double>(chunkStepsSum_) / LOG_INTERVAL;
+                const double avgTime = chunkDurationSum_ / LOG_INTERVAL;
 
-                std::cout << "Ep " << ep << "/" << episodes << " | MaxScore: " << maxScoreBatch << " | Last: " << finalScore << " | AvgSpeed: " << std::fixed
-                          << std::setprecision(2) << speed << "ms/game" << std::endl;
+                const auto totalSeconds = std::chrono::duration_cast<std::chrono::seconds>(epEnd - startTime).count();
+                logChunk(ep - LOG_INTERVAL + 1, ep, avgScore, chunkMaxScore_, chunkMaxTile_, avgSteps, avgTime, static_cast<int>(totalSeconds));
+                std::cout << "Ep " << ep << "/" << episodes << " | AvgScore: " << std::fixed << std::setprecision(1) << avgScore << " | Max: " << chunkMaxScore_
+                          << " | Tile: " << chunkMaxTile_ << " | Speed: " << std::setprecision(2) << avgTime << "ms"
+                          << " | Elapsed: " << totalSeconds << "s" << std::endl;
 
-                maxScoreBatch = 0;
+                chunkScoreSum_ = 0;
+                chunkMaxScore_ = 0;
+                chunkMaxTile_ = 0;
+                chunkStepsSum_ = 0;
+                chunkDurationSum_ = 0.0;
+
                 // Auto save
                 saveWeights("build/bin/tuple_weights.bin");
             }
