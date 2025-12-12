@@ -1,7 +1,6 @@
 #include "board.h"
 
 #include <algorithm>
-#include <iostream>
 
 #include "config.h"
 #include "lookup_table.h"
