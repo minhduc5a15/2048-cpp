@@ -161,8 +161,13 @@ namespace tfe::train {
 
         const auto startTime = std::chrono::high_resolution_clock::now();
         int maxScoreBatch = 0;
+        int globalMaxScore = 0;
+
+        const float startAlpha = alpha_;
 
         for (int ep = 1; ep <= episodes; ++ep) {
+            const float progress = episodes;
+            alpha_ = std::max(0.0001f, startAlpha * (1.0f - progress));
             auto epStart = std::chrono::high_resolution_clock::now();
 
             board_.reset();
