@@ -26,5 +26,3 @@ __pycache__/
 
 train.sh
 logs/*.txt
-
-logs/
