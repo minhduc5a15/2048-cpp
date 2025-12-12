@@ -104,15 +104,15 @@ namespace tfe::train {
         const float change = alpha_ * delta;
 
         // Update Rows
-        // for (int i = 0; i < 64; i += 16) {
-        //     LookupTable::heuristicTable[(boardState >> i) & 0xFFFF] += change;
-        // }
+        for (int i = 0; i < 64; i += 16) {
+            LookupTable::heuristicTable[(boardState >> i) & 0xFFFF] += change;
+        }
 
         // Update Cols
-        // const uint64_t t = transpose64(boardState);
-        // for (int i = 0; i < 64; i += 16) {
-        //     LookupTable::heuristicTable[(t >> i) & 0xFFFF] += change;
-        // }
+        const uint64_t t = transpose64(boardState);
+        for (int i = 0; i < 64; i += 16) {
+            LookupTable::heuristicTable[(t >> i) & 0xFFFF] += change;
+        }
 
         // Update Squares
         constexpr int shifts[] = {0, 4, 8, 16, 20, 24, 32, 36, 40};

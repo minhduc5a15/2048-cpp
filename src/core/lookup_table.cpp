@@ -132,7 +132,7 @@ namespace tfe::core {
         }
         while (temp.size() < 4) temp.push_back(0);  // Fill with 0
 
-        moveLeftTable[row] = pack(temp);
-        scoreTable[row] = score;
+        moveLeftTable[row] = 0.0f;
+        scoreTable[row] = 0.0f;
     }
 }  // namespace tfe::core
