@@ -166,12 +166,14 @@ namespace tfe::core {
             Row newRow;
 
             // Table lookup
-            if (dir == Direction::Left || dir == Direction::Up)
+            if (dir == Direction::Left || dir == Direction::Up) {
                 newRow = LookupTable::moveLeftTable[row];
-            else
+                moveScore += LookupTable::scoreTable[row];
+            } else {
                 newRow = LookupTable::moveRightTable[row];
+                moveScore += LookupTable::scoreRightTable[row];
+            }
 
-            moveScore += LookupTable::scoreTable[row];
             newBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
 
             // Generate Animation Events

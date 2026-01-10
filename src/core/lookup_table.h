@@ -24,6 +24,7 @@ namespace tfe::core {
 
         // Score received when performing a move on that row
         static int scoreTable[TABLE_SIZE];
+        static int scoreRightTable[TABLE_SIZE];
 
         // Heuristic score of that row (used for AI to evaluate board state)
         static float heuristicTable[TABLE_SIZE];

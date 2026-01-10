@@ -11,6 +11,7 @@ namespace tfe::core {
     Row LookupTable::moveLeftTable[TABLE_SIZE];
     Row LookupTable::moveRightTable[TABLE_SIZE];
     int LookupTable::scoreTable[TABLE_SIZE];
+    int LookupTable::scoreRightTable[TABLE_SIZE];
     float LookupTable::heuristicTable[TABLE_SIZE];
     float LookupTable::squareTable[TABLE_SIZE];
 
@@ -33,6 +34,7 @@ namespace tfe::core {
         // Second pass for moveRightTable to ensure moveLeftTable is fully populated
         for (int i = 0; i < TABLE_SIZE; ++i) {
             moveRightTable[i] = reverseRow(moveLeftTable[reverseRow(i)]);
+            scoreRightTable[i] = scoreTable[reverseRow(i)];
         }
     }
 
@@ -132,7 +134,7 @@ namespace tfe::core {
         }
         while (temp.size() < 4) temp.push_back(0);  // Fill with 0
 
-        moveLeftTable[row] = 0.0f;
-        scoreTable[row] = 0.0f;
+        moveLeftTable[row] = pack(temp);
+        scoreTable[row] = score;
     }
 }  // namespace tfe::core
