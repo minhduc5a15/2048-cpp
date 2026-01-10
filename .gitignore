@@ -19,6 +19,8 @@ build.sh
 __pycache__/
 *.pyc
 *.so
+road-map.md
+prompt.md
 
 # Ignore training weights
 *.pkl

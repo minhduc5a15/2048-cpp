@@ -4,6 +4,14 @@
 namespace tfe::gui {
 
     /**
+     * @file theme.h
+     * @brief Central configuration for the visual style of the application.
+     * 
+     * Defines color palettes, dimensions, font sizes, and animation speeds 
+     * to ensure a consistent look and feel across the GUI.
+     */
+
+    /**
      * @struct Theme
      * @brief A static struct that holds all constants related to the visual theme of the GUI.
      *

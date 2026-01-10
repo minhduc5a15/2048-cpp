@@ -7,13 +7,17 @@
 namespace tfe::gui {
 
     GuiGame::GuiGame() : board_(4), renderer_(), isGameOver_(false), currentMoveDirection_(tfe::core::Direction::Up) {
+        // Register this class as an observer to the board
         board_.addObserver(this);
+        
+        // Try to resume a saved game
         if (const auto state = tfe::core::GameSaver::load(); state.has_value()) {
             board_.loadState(*state);
         }
     }
 
     void GuiGame::run() {
+        // Main Application Loop
         while (!shouldExitApp_) {
             update();
             draw();
@@ -22,24 +26,30 @@ namespace tfe::gui {
 
     void GuiGame::draw() const {
         BeginDrawing();
+
+        // 1. Draw the game board (tiles, background, score)
         renderer_.draw(board_);
 
+        // 2. Draw Game Over Overlay
         if (isGameOver_) {
             DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(Theme::BG_COLOR, 0.8f));
             DrawText("GAME OVER", 80, 250, 60, Theme::TEXT_DARK);
             DrawText("Press ENTER to Restart", 120, 320, 20, Theme::TEXT_DARK);
         }
 
+        // 3. Draw Exit Dialog (if active and not already game over)
         if (showExitPrompt_ && !isGameOver_) {
             drawExitDialog();
         }
+        
         EndDrawing();
     }
 
     void GuiGame::drawExitDialog() {
+        // Dim the background
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.5f));
 
-        // Draw dialog
+        // Draw dialog box
         constexpr int boxW = 400;
         constexpr int boxH = 200;
         const int boxX = (GetScreenWidth() - boxW) / 2;
@@ -58,6 +68,7 @@ namespace tfe::gui {
     }
 
     void GuiGame::update() {
+        // --- Priority 1: Handle Exit Dialog ---
         if (showExitPrompt_) {
             if (IsKeyPressed(KEY_Y)) {
                 tfe::core::GameSaver::save(board_.getState());
@@ -68,19 +79,25 @@ namespace tfe::gui {
             } else if (IsKeyPressed(KEY_ESCAPE)) {
                 showExitPrompt_ = false;
             }
-            return;
+            return; // Block other input while dialog is open
         }
 
+        // --- Priority 2: Check for Window Close Request ---
         if (tfe::gui::RaylibRenderer::shouldClose()) {
             showExitPrompt_ = true;
             return;
         }
 
+        // --- Priority 3: Animation Updates ---
+        // Update animations based on delta time
         renderer_.updateAnimation(GetFrameTime());
+        
+        // Block input if animations are playing (prevents "fast-forwarding" logic without visuals)
         if (renderer_.isAnimating()) {
             return;
         }
 
+        // --- Priority 4: Game Over Handling ---
         if (isGameOver_) {
             if (IsKeyPressed(KEY_ENTER)) {
                 board_.reset();
@@ -88,6 +105,7 @@ namespace tfe::gui {
             return;
         }
 
+        // --- Priority 5: Game Input ---
         bool pressed = false;
         if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
             currentMoveDirection_ = tfe::core::Direction::Up;
@@ -105,14 +123,16 @@ namespace tfe::gui {
 
         if (pressed) {
             board_.move(currentMoveDirection_);
+            // Check game over state immediately after move
             if (board_.isGameOver()) return;
         }
     }
 
     // --- IGameEventListener Implementation ---
+    // These callbacks bridge the Core logic events to the GUI Renderer
 
     void GuiGame::onTileSpawn(const int r, const int c, const int value) {
-        (void)value;  // This parameter might be used later for different spawn animations
+        (void)value;  // Unused: currently spawn animation is generic
         renderer_.triggerSpawn(r, c);
     }
 
@@ -127,6 +147,7 @@ namespace tfe::gui {
     void GuiGame::onGameOver() {
         isGameOver_ = true;
         tfe::score::ScoreManager::save_game(board_.getScore(), board_.hasWon());
+        // Clean up save file on game over (permadeath style for session resume)
         tfe::core::GameSaver::clearSave();
     }
 

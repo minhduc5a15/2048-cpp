@@ -8,18 +8,35 @@ namespace tfe::gui {
 
     /**
      * @class GuiGame
-     * @brief Manages the main game loop and state for the GUI version of 2048.
+     * @brief The main application class for the Graphical User Interface (Raylib) version.
      *
-     * This class orchestrates the interaction between the core game logic (`Board`)
-     * and the GUI renderer (`RaylibRenderer`), handling user input, game state updates,
-     * and rendering each frame. It implements IGameObserver to react to board events.
+     * This class implements the classic "Game Loop" pattern:
+     * 1. Handle Input & Update State (Update)
+     * 2. Render State to Screen (Draw)
+     *
+     * It also acts as a bridge (Controller) between the core Logic (`Board`) 
+     * and the View (`RaylibRenderer`).
+     * It implements `IGameObserver` to listen for board events (like moves, merges) 
+     * and trigger the corresponding visual animations in the renderer.
      */
-    class GuiGame final : public tfe::IGameObserver {
+    class GuiGame final : public tfe::core::IGameObserver {
     public:
+        /**
+         * @brief Constructs the GUI Game.
+         * Initializes the window, loads resources, and sets up the board.
+         */
         GuiGame();
+
+        /**
+         * @brief Starts the main application loop.
+         * Blocking call that runs until the window is closed.
+         */
         void run();
 
         // --- IGameObserver Implementation ---
+        // These methods allow the core Board to notify the GUI about logic events
+        // so the GUI can play appropriate animations.
+
         void onTileSpawn(int r, int c, int value) override;
         void onTileMerge(int r, int c, int newValue) override;
         void onTileMove(int fromR, int fromC, int toR, int toC, int value) override;
@@ -27,15 +44,30 @@ namespace tfe::gui {
         void onGameReset() override;
 
     private:
+        /**
+         * @brief Handles user input and game logic updates.
+         * Called once per frame.
+         */
         void update();
+
+        /**
+         * @brief Renders the current frame.
+         * Called once per frame after update().
+         */
         void draw() const;
 
+        /**
+         * @brief Helper to draw the exit confirmation dialog overlay.
+         */
         static void drawExitDialog() ;
 
         tfe::core::Board board_;
         RaylibRenderer renderer_;
         bool isGameOver_;
-        tfe::core::Direction currentMoveDirection_;  // To handle transformed coordinates
+        
+        // Tracks the current move direction to correctly map visual coordinates
+        // if transformations are used (though typically handled by the renderer).
+        tfe::core::Direction currentMoveDirection_;  
 
         bool showExitPrompt_ = false;
         bool shouldExitApp_ = false;

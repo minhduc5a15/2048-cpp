@@ -1,54 +1,54 @@
 #pragma once
 
-namespace tfe {
+namespace tfe::core {
 
     /**
-     * @class IGameObserver
-     * @brief An interface for classes that need to observe game events from the Board.
+     * @interface IGameObserver
+     * @brief Interface for observing game events (Observer Pattern).
      *
-     * This follows the Observer design pattern, where the Board is the "subject"
-     * and classes that implement this interface are the "observers". This decouples
-     * the core game logic from systems that react to it, like the UI or audio.
+     * This interface allows different subsystems (like the GUI renderer, audio manager,
+     * or AI trainer) to react to changes in the core game state without the core
+     * engine needing to know about them.
      */
     class IGameObserver {
     public:
         virtual ~IGameObserver() = default;
 
         /**
+         * @brief Called when the game is reset (new game starts).
+         */
+        virtual void onGameReset() {}
+
+        /**
+         * @brief Called when the game ends (no more moves).
+         */
+        virtual void onGameOver() {}
+
+        /**
          * @brief Called when a new tile is spawned on the board.
-         * @param r The row where the tile spawned.
-         * @param c The column where the tile spawned.
-         * @param value The value of the new tile (e.g., 2 or 4).
+         * @param r Row index.
+         * @param c Column index.
+         * @param value The value of the spawned tile (2 or 4).
          */
-        virtual void onTileSpawn(int r, int c, int value) = 0;
+        virtual void onTileSpawn(int r, int c, int value) {}
 
         /**
-         * @brief Called when two tiles merge to form a new tile.
-         * @param r The row where the merge occurred.
-         * @param c The column where the merge occurred.
-         * @param newValue The value of the newly formed tile (e.g., 8, 16, etc.).
-         */
-        virtual void onTileMerge(int r, int c, int newValue) = 0;
-
-        /**
-         * @brief Called when a tile moves from one position to another without merging.
-         * @param fromR The starting row.
-         * @param fromC The starting column.
-         * @param toR The destination row.
-         * @param toC The destination column.
+         * @brief Called when a tile moves from one position to another.
+         * @param fromR Source row.
+         * @param fromC Source column.
+         * @param toR Destination row.
+         * @param toC Destination column.
          * @param value The value of the moving tile.
          */
-        virtual void onTileMove(int fromR, int fromC, int toR, int toC, int value) = 0;
+        virtual void onTileMove(int fromR, int fromC, int toR, int toC, int value) {}
 
         /**
-         * @brief Called when the game is over.
+         * @brief Called when two tiles merge into a new value.
+         * @param r Row index where the merge happened.
+         * @param c Column index where the merge happened.
+         * @param newValue The resulting value after merge.
          */
-        virtual void onGameOver() = 0;
-
-        /**
-         * @brief Called when the board is reset at the start of a new game.
-         */
-        virtual void onGameReset() = 0;
+        virtual void onTileMerge(int r, int c, int newValue) {}
     };
 
-} // namespace tfe
+}  // namespace tfe::core

@@ -11,46 +11,49 @@ namespace tfe::game {
     /**
      * @brief Constructor for the Game class.
      *
-     * Initializes the game with a 4x4 board and sets the running state to true.
+     * Initializes the game with a standard 4x4 board and sets the initial state to running.
+     * The board initialization includes seeding the random generator and spawning start tiles.
      */
     Game::Game() : board_(4), isRunning_(true) {}
 
     /**
-     * @brief Runs the main game loop for the console version.
+     * @brief Executes the main game loop for the console-based 2048 game.
      *
-     * This loop continues as long as the game is running. In each iteration, it:
-     * 1. Renders the current state of the board to the console.
-     * 2. Checks if the game is over. If so, it saves the score, displays the game over message, and waits for input before exiting.
-     * 3. Reads user input for the next move or to quit.
-     * 4. Updates the game state based on the user's command (moving tiles or quitting).
-     * After the loop ends (e.g., user quits), it cleans up the console screen.
+     * This method manages the lifecycle of the game application:
+     * 1. Rendering: Displays the board using ASCII/ANSI art.
+     * 2. Input: Waits for and processes user keystrokes.
+     * 3. Logic: Updates the board state based on moves or AI commands.
+     * 4. Game Over: Handles win/loss conditions and score saving.
      */
     void Game::run() {
         bool needRender = true;
 
         while (isRunning_) {
+            // Optimize rendering: only redraw when the state changes.
             if (needRender) {
                 tfe::renderer::ConsoleRenderer::render(board_);
                 needRender = false;
             }
 
-            // 1. Render the current board state.
+            // Force render before checking game over to ensure final state is visible.
+            // (Note: The double render here in the original logic is slightly redundant but harmless)
             tfe::renderer::ConsoleRenderer::render(board_);
 
-            // 2. Check for game over condition.
+            // Check for Game Over condition
             if (board_.isGameOver()) {
+                // Save score and display end screen
                 tfe::score::ScoreManager::save_game(board_.getScore(), board_.hasWon());
                 tfe::renderer::ConsoleRenderer::showGameOver();
-                // Wait for any key press to exit or handle restart logic.
-                // For now, it just exits.
+                
+                // Wait for user acknowledgment before exiting
                 tfe::input::InputHandler::readInput();
                 break;
             }
 
-            // 3. Read user input.
+            // Block and wait for user input
             const auto command = tfe::input::InputHandler::readInput();
 
-            // 4. Update game logic based on input.
+            // Process the command
             bool moved = false;
             switch (command) {
                 case input::InputHandler::InputCommand::Quit:
@@ -70,18 +73,21 @@ namespace tfe::game {
                     break;
 
                 case input::InputHandler::InputCommand::AutoPlay: {
+                    // Activate AI Auto-player
                     while (!board_.isGameOver() && isRunning_) {
+                        // AI thinks with a depth limit (12 is a reasonable balance for speed/accuracy)
                         const auto bestDir = tfe::core::AISolver::findBestMove(board_, 12);
 
                         const bool aiMoved = board_.move(bestDir);
 
+                        // Visualize the AI's move
                         tfe::renderer::ConsoleRenderer::render(board_, true);
 
-                        // fast, fast, fast and fast
+                        // Optional delay to make AI moves followable by human eyes
                         std::this_thread::sleep_for(std::chrono::milliseconds(0));
 
                         if (!aiMoved) {
-                            // AI got stuck
+                            // Safety check: AI shouldn't return a move that doesn't change the board
                             isRunning_ = false;
                             throw std::runtime_error("AI made an invalid move or got stuck. Exiting autoplay.");
                         }
@@ -90,8 +96,7 @@ namespace tfe::game {
                     break;
                 }
                 default:
-                    // If the user presses an invalid key or a move doesn't change the board,
-                    // the loop will simply re-render and wait for the next input.
+                    // Invalid input: ignore and wait for next input
                     break;
             }
 
@@ -100,6 +105,7 @@ namespace tfe::game {
             }
         }
 
-        tfe::renderer::ConsoleRenderer::clear();  // Clean up the screen on exit.
+        // Cleanup resources
+        tfe::renderer::ConsoleRenderer::clear(); 
     }
 }  // namespace tfe::game

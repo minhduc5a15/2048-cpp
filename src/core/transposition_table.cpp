@@ -1,5 +1,7 @@
 #include "transposition_table.h"
 
+#include <cstring>
+
 namespace tfe::core {
 
     TranspositionTable& TranspositionTable::instance() {
@@ -7,18 +9,43 @@ namespace tfe::core {
         return instance;
     }
 
-    bool TranspositionTable::get(const Bitboard board, const int depth, float& score) const {
-        auto it = table_.find(board);
-        if (it != table_.end()) {
-            if (it->second.depth >= depth) {
-                score = it->second.score;
-                return true;
-            }
+    TranspositionTable::TranspositionTable() {
+        // Pre-allocate the entire table to avoid reallocations during runtime.
+        table_.resize(TABLE_SIZE);
+        clear();
+    }
+
+    bool TranspositionTable::get(Bitboard board, int depth, float& score) const {
+        // Simple hash function: Use the board state itself as the hash.
+        // Since TABLE_SIZE is a power of 2, we can use a bitmask (TABLE_MASK)
+        // instead of the modulo operator (%) for speed.
+        const size_t index = board & TABLE_MASK;
+        const TTEntry& entry = table_[index];
+
+        // Check for Key Match (Collision check) AND Sufficient Depth
+        // We only use the cached value if the stored search was at least as deep
+        // as the current request. Shallow searches are not precise enough for deep recursion.
+        if (entry.key == board && entry.depth >= depth) {
+            score = entry.score;
+            return true;
         }
         return false;
     }
 
-    void TranspositionTable::put(const Bitboard board, const int depth, const float score) { table_[board] = {depth, score}; }
+    void TranspositionTable::put(Bitboard board, int depth, float score) {
+        const size_t index = board & TABLE_MASK;
+        
+        // Replacement Strategy: Always Replace
+        // We overwrite the existing entry at this hash index.
+        // While more complex strategies exist (e.g., replace if deeper, or separate buckets),
+        // "Always Replace" is fast and works well for this game because recent nodes
+        // are often more relevant to the current search path.
+        table_[index] = TTEntry{board, score, static_cast<uint8_t>(depth), {0, 0, 0}};
+    }
 
-    void TranspositionTable::clear() { table_.clear(); }
+    void TranspositionTable::clear() {
+        // memset is the fastest way to zero out a large block of memory.
+        std::memset(table_.data(), 0, table_.size() * sizeof(TTEntry));
+    }
+
 }  // namespace tfe::core

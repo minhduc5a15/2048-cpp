@@ -12,23 +12,37 @@ namespace tfe::score {
 
     using json = nlohmann::json;
 
-    // Helper to get the full, platform-specific path for the score file.
+    /**
+     * @brief Determines the platform-specific path for the scores file.
+     * 
+     * - Windows: %APPDATA%/2048-cpp/scores.json
+     * - Linux/macOS: ~/.local/share/2048-cpp/scores.json
+     * 
+     * Ensures that the directory exists before returning the path.
+     * Falls back to the current directory ("scores.json") if the user data path is unavailable.
+     * 
+     * @return std::filesystem::path The full path to the scores file.
+     */
     std::filesystem::path getScoreFilePath() {
         const std::filesystem::path userDataPath = tfe::platform::get_user_data_directory();
         if (userDataPath.empty()) {
-            // Fallback to current directory if we can't get a user data path
+            // Fallback to current working directory
             return "scores.json";
         }
 
-        // Create a dedicated directory for our app inside the user data folder
+        // Create a sub-directory for this application to avoid cluttering the root data folder
         const std::filesystem::path appDataPath = userDataPath / "2048-cpp";
-        std::filesystem::create_directories(appDataPath); // a-cpp
+        
+        // Ensure the directory structure exists
+        std::filesystem::create_directories(appDataPath);
 
         return appDataPath / "scores.json";
     }
 
-
-    // Helper to get current timestamp as a string
+    /**
+     * @brief Generates a formatted timestamp string (YYYY-MM-DD HH:MM:SS).
+     * Used for logging when a high score was achieved.
+     */
     std::string getCurrentTimestamp() {
         const auto now = std::chrono::system_clock::now();
         const auto time_t_now = std::chrono::system_clock::to_time_t(now);
@@ -41,22 +55,26 @@ namespace tfe::score {
         const auto scorePath = getScoreFilePath();
         std::ifstream file(scorePath);
         if (!file.is_open()) {
-            return 0; // File doesn't exist, so no high score yet.
+            // If the file doesn't exist yet, the high score is 0.
+            return 0;
         }
 
         int highScore = 0;
         std::string line;
+        
+        // Read the file line by line (JSON Lines format) to find the maximum score.
         while (std::getline(file, line)) {
             if (line.empty()) continue;
             try {
+                // Parse each line as a separate JSON object
                 if (json game = json::parse(line); game.contains("score") && game["score"].is_number_integer()) {
                     if (game["score"] > highScore) {
                         highScore = game["score"];
                     }
                 }
             } catch (json::parse_error& e) {
-                std::cerr << "Warning: Could not parse a line in score file. Line: " << line << std::endl;
-                // Continue to next line
+                // Silently ignore corrupted lines to prevent crashing
+                std::cerr << "[ScoreManager] Warning: Skipped corrupted line in score file." << std::endl;
             }
         }
         return highScore;
@@ -67,18 +85,19 @@ namespace tfe::score {
         const int currentHighScore = load_high_score();
         const bool isNewRecord = (finalScore > currentHighScore);
 
+        // Construct the JSON object for this game session
         json newGame;
         newGame["timestamp"] = getCurrentTimestamp();
         newGame["score"] = finalScore;
         newGame["achieved_2048"] = won;
         newGame["is_new_highscore"] = isNewRecord;
 
-        // Open the file in append mode.
+        // Open file in APPEND mode so we keep a history of games
         if (std::ofstream outputFile(scorePath, std::ios::app); outputFile.is_open()) {
-            // Write the new game object as a single line, followed by a newline.
+            // Write compact JSON on a single line
             outputFile << newGame.dump() << std::endl;
         } else {
-            std::cerr << "Error: Could not open " << scorePath << " for writing." << std::endl;
+            std::cerr << "[ScoreManager] Error: Could not save score to " << scorePath << std::endl;
         }
     }
 

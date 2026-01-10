@@ -7,121 +7,131 @@ namespace tfe::gui {
     /**
      * @struct MovingTile
      * @brief Represents a tile that is currently in motion (sliding) across the board.
+     * 
+     * Used to render smooth transitions between board states. The core logic moves
+     * tiles instantaneously, but this struct allows the GUI to interpolate the position
+     * over time.
      */
     struct MovingTile {
-        int value;
-        int id;
-        float startX, startY;    // Starting position in pixels.
-        float targetX, targetY;  // Target position in pixels.
-        int destR, destC;        // Target grid coordinates, used for ghost checking.
-        float progress;          // Animation progress from 0.0 to 1.0.
+        int value;               // The numeric value of the tile (e.g., 2, 4, 8).
+        int id;                  // Unique identifier (unused in simple implementation but good for tracking).
+        float startX, startY;    // Starting pixel coordinates.
+        float targetX, targetY;  // Destination pixel coordinates.
+        int destR, destC;        // Destination grid coordinates (to match with static board).
+        float progress;          // Animation progress (0.0 to 1.0).
     };
 
     /**
      * @struct FloatingText
-     * @brief Represents a piece of text (e.g., score change) that floats up and fades out.
+     * @brief Represents a visual score popup (e.g., "+4") that floats upwards and fades out.
      */
     struct FloatingText {
-        int value;          // The score value (e.g., 8, 16).
-        float x, y;         // Current position in pixels.
-        float lifeTime;     // Time elapsed since creation.
-        float maxLifeTime;  // Maximum duration this text should be visible (in seconds).
+        int value;          // The score value to display.
+        float x, y;         // Current pixel coordinates.
+        float lifeTime;     // How long the text has been alive (seconds).
+        float maxLifeTime;  // Total duration before it disappears.
     };
 
     /**
      * @struct CellAnim
-     * @brief Represents the animation state of a single grid cell.
+     * @brief Tracks the animation state for a specific grid cell (Spawn or Merge effects).
      */
     struct CellAnim {
         enum Type { None, Spawn, Merge };
 
-        Type type = None;
-        float timer = 0.0f;  // Animation timer, typically from 0.0 to 1.0.
+        Type type = None;    // The type of animation currently playing.
+        float timer = 0.0f;  // Animation progress timer.
     };
 
     /**
      * @class RaylibRenderer
-     * @brief Manages all rendering and animation for the GUI using the Raylib library.
+     * @brief Handles all graphical rendering using the Raylib library.
      *
-     * This class is responsible for drawing the board, tiles, and score, as well as
-     * handling all visual animations for sliding, spawning, and merging tiles.
+     * Responsibilities:
+     * - Initializing and closing the Raylib window context.
+     * - Drawing the static board grid and background.
+     * - Managing and drawing active animations (sliding tiles, pop-ups).
+     * - Handling window events (close request).
      */
     class RaylibRenderer {
     public:
+        /**
+         * @brief Initializes the Raylib window and loads font resources.
+         */
         RaylibRenderer();
+
+        /**
+         * @brief Closes the Raylib window and unloads resources.
+         */
         ~RaylibRenderer();
 
         /**
-         * @brief Checks if the game window should be closed.
-         * @return True if a close event has been triggered (e.g., closing the window), false otherwise.
+         * @brief Checks if the user has requested to close the window (e.g., clicked X).
+         * @return True if the window should close.
          */
         static bool shouldClose();
 
         /**
-         * @brief Draws the entire game state to the screen.
+         * @brief Main draw function. Renders the entire game scene.
          * @param board The current state of the game board.
          */
         void draw(const tfe::core::Board& board) const;
 
         /**
-         * @brief Updates all ongoing animations based on the elapsed time.
-         * @param dt The delta time (time since the last frame).
+         * @brief Updates the state of all active animations.
+         * @param dt Delta time (time elapsed since last frame) in seconds.
          */
         void updateAnimation(float dt);
 
         /**
-         * @brief Triggers a spawn animation at a specific cell.
-         * @param r The row index of the cell.
-         * @param c The column index of the cell.
+         * @brief Triggers a "Spawn" animation (scaling up from 0) at a specific cell.
          */
         void triggerSpawn(int r, int c);
 
         /**
-         * @brief Triggers a merge animation at a specific cell.
-         * @param r The row index of the cell.
-         * @param c The column index of the cell.
-         * @param value The value of the merged tile (e.g., 8, 16).
+         * @brief Triggers a "Merge" animation (pop effect) and adds floating score text.
          */
         void triggerMerge(int r, int c, int value);
 
         /**
-         * @brief Adds a tile to the list of moving tiles to animate its slide.
-         * @param value The value of the tile.
-         * @param id The unique ID of the tile.
-         * @param fromR The starting row.
-         * @param fromC The starting column.
-         * @param toR The destination row.
-         * @param toC The destination column.
+         * @brief Registers a new sliding tile animation.
+         * 
+         * @param value The tile value.
+         * @param id Unique ID.
+         * @param fromR Source row.
+         * @param fromC Source column.
+         * @param toR Destination row.
+         * @param toC Destination column.
          */
         void addMovingTile(int value, int id, int fromR, int fromC, int toR, int toC);
 
         /**
-         * @brief Checks if any animations are currently active.
-         * @return True if there are tiles sliding, false otherwise.
+         * @brief Checks if any animations (specifically sliding tiles) are still playing.
+         * Used to block user input until animations complete.
          */
         bool isAnimating() const { return !movingTiles_.empty(); }
 
     private:
-        float cellSize_;  // The size of a single cell in pixels.
+        float cellSize_;  // Size of one grid cell in pixels (calculated based on window size).
 
-        // A grid that tracks the animation state of each cell (for spawning/merging).
+        // Grid tracking animation states for stationary cells (Spawn/Merge)
         std::vector<std::vector<CellAnim>> cellAnims_;
 
-        // A list of all tiles that are currently sliding.
+        // List of currently sliding tiles
         std::vector<MovingTile> movingTiles_;
 
+        // List of active floating score texts
         std::vector<FloatingText> floatingTexts_;
 
-        // Helper to convert a column index to a pixel X coordinate.
+        // --- Coordinate Helpers ---
         float getPixelX(int c) const;
-        // Helper to convert a row index to a pixel Y coordinate.
         float getPixelY(int r) const;
 
-        // --- Easing Functions for Animations ---
-
-        // An "overshooting" ease-out function for a bouncy effect.
+        // --- Easing Functions ---
+        // Ease-out-back: Goes slightly past target and comes back (bouncy).
         static float easeOutBack(float x);
-        // A "pop" effect, where the scale goes past 1.0 and then settles.
+        
+        // Pop effect: Scales up beyond 1.0 then settles back to 1.0.
         static float easePop(float x);
     };
 }  // namespace tfe::gui
