@@ -1,6 +1,6 @@
 #include "ai_solver.h"
 
-#include <chrono>
+#include <algorithm>
 #include <limits>
 #include <vector>
 
@@ -8,15 +8,6 @@
 #include "transposition_table.h"
 
 namespace tfe::core {
-
-    /**
-     * @brief Lightweight exception used to immediately unwind the recursion stack when time runs out.
-     * 
-     * While using exceptions for control flow is often discouraged, in this specific case of 
-     * deep recursion with a hard real-time constraint, it provides a clean way to "abort" 
-     * the search from any depth without passing error codes up every single stack frame.
-     */
-    struct TimeOutException {};
 
     /**
      * @brief Extracts a column from the bitboard and packs it into a 16-bit row format.
@@ -38,28 +29,6 @@ namespace tfe::core {
         return static_cast<Row>(ret & 0xFFFF);
     }
 
-    static int countEmpty(const Bitboard board) {
-        int count = 0;
-        for (int i = 0; i < 16; ++i) {
-            if (((board >> (i * 4)) & 0xF) == 0) count++;
-        }
-        return count;
-    }
-
-    /**
-     * @brief Extracts a 2x2 square of tiles for the "Tuple Network" evaluation.
-     * 
-     * Used by the trained neural network weights (if loaded) to evaluate local patterns.
-     */
-    static inline uint16_t getSquareIndex(const Bitboard board, const int shift) {
-        uint16_t idx = 0;
-        idx |= (board >> shift) & 0xF;
-        idx |= ((board >> (shift + 4)) & 0xF) << 4;
-        idx |= ((board >> (shift + 16)) & 0xF) << 8;
-        idx |= ((board >> (shift + 20)) & 0xF) << 12;
-        return idx;
-    }
-
     float AISolver::evaluateBoard(const Bitboard board) {
         float score = 0;
         
@@ -72,124 +41,107 @@ namespace tfe::core {
             score += LookupTable::heuristicTable[extractColumn(board, c)];
         }
 
-        // 3. Evaluate Squares (Local 2x2 patterns)
-        // This captures spatial relationships that simple row/col checks miss.
-        constexpr int shifts[] = {0, 4, 8, 16, 20, 24, 32, 36, 40};
-        for (const int s : shifts) {
-            score += LookupTable::squareTable[getSquareIndex(board, s)];
-        }
         return score;
     }
 
-    Direction AISolver::findBestMove(const Board& board, const int maxDepth) {
+    /**
+     * @brief Counts the number of distinct tile values on the board.
+     * Used to calculate the dynamic search depth.
+     */
+    static int countDistinctTiles(const Bitboard board) {
+        int count = 0;
+        uint32_t seenMask = 0;
+        for (int i = 0; i < 16; ++i) {
+            int val = (board >> (i * 4)) & 0xF;
+            if (val > 0 && !((seenMask >> val) & 1)) {
+                seenMask |= (1 << val);
+                count++;
+            }
+        }
+        return count;
+    }
+
+    Direction AISolver::findBestMove(const Board& board) {
         const Bitboard currentBoard = board.getState().board;
         auto bestMove = Direction::Up;
-
-        // Hard time limit: 150ms per move.
-        // This ensures the game remains responsive.
-        const auto startTime = std::chrono::high_resolution_clock::now();
-        const auto deadline = startTime + std::chrono::milliseconds(150);
+        float bestScore = -std::numeric_limits<float>::max();
 
         TranspositionTable::instance().clear();
-        int nodesVisited = 0;
 
-        // --- Iterative Deepening ---
-        // We search depth 1, then depth 2, then depth 3...
-        // If we timeout at depth N, we fall back to the best move found at depth N-1.
-        for (int depth = 1; depth <= maxDepth; ++depth) {
-            float currentBestScore = -std::numeric_limits<float>::max();
-            auto currentBestMove = Direction::Up;
-            bool foundMove = false;
+        // Dynamic depth calculation based on board complexity
+        int distinctTiles = countDistinctTiles(currentBoard);
+        int depthLimit = std::max(3, distinctTiles - 2);
 
-            try {
-                // Try all 4 directions for the root node
-                for (const auto dir : {Direction::Up, Direction::Down, Direction::Left, Direction::Right}) {
-                    Bitboard nextBoard = 0;
-                    bool changed = false;
+        // Iterate through all 4 directions
+        for (const auto dir : {Direction::Up, Direction::Down, Direction::Left, Direction::Right}) {
+            Bitboard nextBoard = 0;
+            bool changed = false;
 
-                    // --- MOVE SIMULATION (Optimized with Lookup Tables) ---
-                    if (dir == Direction::Left) {
-                        for (int r = 0; r < 4; ++r) {
-                            const Row row = (currentBoard >> (r * 16)) & 0xFFFF;
-                            const Row newRow = LookupTable::moveLeftTable[row];
-                            if (row != newRow) changed = true;
-                            nextBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
-                        }
-                    } else if (dir == Direction::Right) {
-                        for (int r = 0; r < 4; ++r) {
-                            const Row row = (currentBoard >> (r * 16)) & 0xFFFF;
-                            const Row newRow = LookupTable::moveRightTable[row];
-                            if (row != newRow) changed = true;
-                            nextBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
-                        }
-                    } else if (dir == Direction::Up) {
-                        for (int c = 0; c < 4; ++c) {
-                            const Row col = extractColumn(currentBoard, c);
-                            const Bitboard newCol = LookupTable::colUpTable[col];
-                            nextBoard |= (newCol << c);
-                        }
-                        if (nextBoard != currentBoard) changed = true;
-                    } else {  // Down
-                        for (int c = 0; c < 4; ++c) {
-                            const Row col = extractColumn(currentBoard, c);
-                            const Bitboard newCol = LookupTable::colDownTable[col];
-                            nextBoard |= (newCol << c);
-                        }
-                        if (nextBoard != currentBoard) changed = true;
-                    }
-
-                    if (changed) {
-                        // Start recursive search for this branch
-                        float score = expectimax(nextBoard, depth, false, 1.0f, deadline, nodesVisited);
-                        if (score > currentBestScore) {
-                            currentBestScore = score;
-                            currentBestMove = dir;
-                            foundMove = true;
-                        }
-                    }
+            // --- MOVE SIMULATION (Optimized with Lookup Tables) ---
+            if (dir == Direction::Left) {
+                for (int r = 0; r < 4; ++r) {
+                    const Row row = (currentBoard >> (r * 16)) & 0xFFFF;
+                    const Row newRow = LookupTable::moveLeftTable[row];
+                    if (row != newRow) changed = true;
+                    nextBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
                 }
-
-                // If we completed this depth level without timeout, update the global best move.
-                if (foundMove) {
-                    bestMove = currentBestMove;
+            } else if (dir == Direction::Right) {
+                for (int r = 0; r < 4; ++r) {
+                    const Row row = (currentBoard >> (r * 16)) & 0xFFFF;
+                    const Row newRow = LookupTable::moveRightTable[row];
+                    if (row != newRow) changed = true;
+                    nextBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
                 }
+            } else if (dir == Direction::Up) {
+                for (int c = 0; c < 4; ++c) {
+                    const Row col = extractColumn(currentBoard, c);
+                    const Bitboard newCol = LookupTable::colUpTable[col];
+                    nextBoard |= (newCol << c);
+                }
+                if (nextBoard != currentBoard) changed = true;
+            } else {  // Down
+                for (int c = 0; c < 4; ++c) {
+                    const Row col = extractColumn(currentBoard, c);
+                    const Bitboard newCol = LookupTable::colDownTable[col];
+                    nextBoard |= (newCol << c);
+                }
+                if (nextBoard != currentBoard) changed = true;
+            }
 
-            } catch (const TimeOutException&) {
-                // Timeout occurred! Stop searching deeper.
-                // We return the 'bestMove' from the previous fully completed depth.
-                break;
+            if (changed) {
+                // We moved successfully. Now evaluate this new state (Chance Node).
+                // Initial depth is 1 because we made one move.
+                // cprob is 1.0 at the root.
+                float score = expectimax(nextBoard, 1, depthLimit, false, 1.0f);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = dir;
+                }
             }
         }
 
         return bestMove;
     }
 
-    float AISolver::expectimax(const Bitboard board, const int depth, const bool isPlayerTurn, const float cumulativeProb, std::chrono::high_resolution_clock::time_point deadline,
-                               int& nodesVisited) {
-        // --- TIME CHECK ---
-        // Checking the system clock is expensive. We only check every 4096 nodes 
-        // to minimize overhead while remaining responsive enough.
-        if ((nodesVisited & 0xFFF) == 0) {
-            if (std::chrono::high_resolution_clock::now() >= deadline) {
-                throw TimeOutException();
-            }
-        }
-        nodesVisited++;
-
+    float AISolver::expectimax(const Bitboard board, const int depth, const int depthLimit, const bool isPlayerTurn, const float cprob) {
         // Base cases:
         // 1. Probability is too low (Pruning): This branch is unlikely to happen.
         // 2. Depth limit reached.
-        if (cumulativeProb < 0.0001f || depth == 0) {
+        if (cprob < 0.0001f || depth >= depthLimit) {
             return evaluateBoard(board);
         }
 
         // Transposition Table Lookup (Memoization)
-        // If we've seen this state before at a sufficient depth, return the cached score.
+        // We use "remaining depth" logic for the transposition table to be compatible with its interface.
+        // TT expects: entry.depth >= needed_depth.
+        // Our needed_depth (remaining) is depthLimit - depth.
         // Note: We only cache Environment nodes (Chance nodes) usually, or we can cache both.
         // Here we cache when it's NOT player turn (i.e., before chance node evaluation).
         if (!isPlayerTurn) {
             float cachedScore;
-            if (TranspositionTable::instance().get(board, depth, cachedScore)) return cachedScore;
+            // Map current depth logic to "remaining depth" for TT compatibility
+            int remainingDepth = depthLimit - depth;
+            if (TranspositionTable::instance().get(board, remainingDepth, cachedScore)) return cachedScore;
         }
 
         if (isPlayerTurn) {  // MAX Node (Player tries to maximize score)
@@ -204,7 +156,9 @@ namespace tfe::core {
                 for (int r = 0; r < 64; r += 16) next |= static_cast<Bitboard>(LookupTable::moveLeftTable[(board >> r) & 0xFFFF]) << r;
                 if (next != board) {
                     canMove = true;
-                    float val = expectimax(next, depth, false, cumulativeProb, deadline, nodesVisited);
+                    // Player move transitions to Chance node (isPlayerTurn = false).
+                    // Depth increases on player move.
+                    float val = expectimax(next, depth + 1, depthLimit, false, cprob);
                     if (val > maxVal) maxVal = val;
                 }
             }
@@ -214,7 +168,7 @@ namespace tfe::core {
                 for (int r = 0; r < 64; r += 16) next |= static_cast<Bitboard>(LookupTable::moveRightTable[(board >> r) & 0xFFFF]) << r;
                 if (next != board) {
                     canMove = true;
-                    float val = expectimax(next, depth, false, cumulativeProb, deadline, nodesVisited);
+                    float val = expectimax(next, depth + 1, depthLimit, false, cprob);
                     if (val > maxVal) maxVal = val;
                 }
             }
@@ -224,7 +178,7 @@ namespace tfe::core {
                 for (int c = 0; c < 4; ++c) next |= LookupTable::colUpTable[extractColumn(board, c)] << c;
                 if (next != board) {
                     canMove = true;
-                    float val = expectimax(next, depth, false, cumulativeProb, deadline, nodesVisited);
+                    float val = expectimax(next, depth + 1, depthLimit, false, cprob);
                     if (val > maxVal) maxVal = val;
                 }
             }
@@ -234,7 +188,7 @@ namespace tfe::core {
                 for (int c = 0; c < 4; ++c) next |= LookupTable::colDownTable[extractColumn(board, c)] << c;
                 if (next != board) {
                     canMove = true;
-                    float val = expectimax(next, depth, false, cumulativeProb, deadline, nodesVisited);
+                    float val = expectimax(next, depth + 1, depthLimit, false, cprob);
                     if (val > maxVal) maxVal = val;
                 }
             }
@@ -252,9 +206,11 @@ namespace tfe::core {
             if (((board >> (i * 4)) & 0xF) == 0) {
                 emptyCount++;
                 // 90% chance of spawning 2 (Value 1)
-                totalScore += 0.9f * expectimax(board | (static_cast<Bitboard>(1) << (i * 4)), depth - 1, true, cumulativeProb * 0.9f, deadline, nodesVisited);
+                // Chance node transitions to Player node (isPlayerTurn = true).
+                // Depth does NOT increase on spawn (only on player moves).
+                totalScore += 0.9f * expectimax(board | (static_cast<Bitboard>(1) << (i * 4)), depth, depthLimit, true, cprob * 0.9f);
                 // 10% chance of spawning 4 (Value 2)
-                totalScore += 0.1f * expectimax(board | (static_cast<Bitboard>(2) << (i * 4)), depth - 1, true, cumulativeProb * 0.1f, deadline, nodesVisited);
+                totalScore += 0.1f * expectimax(board | (static_cast<Bitboard>(2) << (i * 4)), depth, depthLimit, true, cprob * 0.1f);
             }
         }
 
@@ -263,7 +219,8 @@ namespace tfe::core {
         const float finalScore = totalScore / emptyCount;
         
         // Cache the result
-        TranspositionTable::instance().put(board, depth, finalScore);
+        // Store with "remaining depth" logic
+        TranspositionTable::instance().put(board, depthLimit - depth, finalScore);
 
         return finalScore;
     }

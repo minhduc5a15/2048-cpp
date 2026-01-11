@@ -76,7 +76,7 @@ namespace tfe::game {
                     // Activate AI Auto-player
                     while (!board_.isGameOver() && isRunning_) {
                         // AI thinks with a depth limit (12 is a reasonable balance for speed/accuracy)
-                        const auto bestDir = tfe::core::AISolver::findBestMove(board_, 12);
+                        const auto bestDir = tfe::core::AISolver::findBestMove(board_);
 
                         const bool aiMoved = board_.move(bestDir);
 

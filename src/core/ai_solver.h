@@ -17,21 +17,19 @@ namespace tfe::core {
         /**
          * @brief Finds the best move for the current board state.
          * 
-         * Uses Iterative Deepening Expectimax. It starts searching at depth 1, then depth 2,
-         * and so on, until the time limit is reached.
+         * Uses Dynamic Depth Search with Cumulative Probability Pruning.
+         * The depth is determined by the number of distinct tiles on the board.
          * 
          * @param board The current game board.
-         * @param depth The maximum depth limit (soft limit). The time limit usually cuts it off earlier.
          * @return The best calculated Direction.
          */
-        static Direction findBestMove(const Board& board, int depth = 10);
+        static Direction findBestMove(const Board& board);
 
     private:
         /**
          * @brief Evaluates the "goodness" of a static board state.
          * 
-         * Uses the pre-calculated heuristic tables (weighted sum of monotonicity, 
-         * empty cells, etc.) or loaded neural network weights.
+         * Uses the pre-calculated heuristic tables.
          * 
          * @param board The board state to evaluate.
          * @return A floating-point score (higher is better).
@@ -42,14 +40,12 @@ namespace tfe::core {
          * @brief The core recursive Expectimax function.
          * 
          * @param board The current board state.
-         * @param depth Remaining depth to search.
+         * @param depth Current depth of the search.
+         * @param depthLimit The maximum depth allowed for this search.
          * @param isPlayerTurn True if it's the player's move, False if it's the environment's spawn.
-         * @param cumulativeProb Optimization: The probability of reaching this node. Used to prune unlikely branches.
-         * @param deadline The exact time point when calculation must stop.
-         * @param nodesVisited Counter for performance metrics and checking time periodically.
+         * @param cprob The cumulative probability of reaching this node. Used for pruning.
          * @return The expected score of the node.
          */
-        static float expectimax(Bitboard board, int depth, bool isPlayerTurn, float cumulativeProb,
-                                std::chrono::high_resolution_clock::time_point deadline, int& nodesVisited);
+        static float expectimax(Bitboard board, int depth, int depthLimit, bool isPlayerTurn, float cprob);
     };
 }  // namespace tfe::core

@@ -79,19 +79,9 @@ namespace tfe::core {
     }
 
     bool LookupTable::loadWeights(const char* filepath) {
-        std::ifstream file(filepath, std::ios::binary);
-        if (!file.is_open()) {
-            // Warning: Could not open weights file. Using default heuristics.
-            return false;
-        }
-        uint32_t count;
-        file.read(reinterpret_cast<char*>(&count), sizeof(count));
-        
-        if (count != TABLE_SIZE) return false;
-        
-        file.read(reinterpret_cast<char*>(heuristicTable), count * sizeof(float));
-        file.read(reinterpret_cast<char*>(squareTable), count * sizeof(float));
-        return true;
+        // Force usage of default heuristics by ignoring the file.
+        (void)filepath; // Prevent unused parameter warning
+        return false;
     }
 
     // Helper: Unpacks 16-bit row to vector of 4 integers
