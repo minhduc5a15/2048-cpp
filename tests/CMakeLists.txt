@@ -7,7 +7,13 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(googletest)
 
-add_executable(unit_tests board-test.cpp)
+add_executable(unit_tests
+
+    board-test.cpp
+
+    bitboard_ops_tests.cpp
+
+)
 
 target_link_libraries(unit_tests PRIVATE core GTest::gtest_main)
 

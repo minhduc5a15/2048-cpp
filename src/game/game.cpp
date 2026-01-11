@@ -1,6 +1,8 @@
 #include "game.h"
 
 #include "score/score-manager.h"
+#include <chrono>
+#include <iostream>
 
 namespace tfe::game {
 
@@ -9,7 +11,9 @@ namespace tfe::game {
      *
      * Initializes the game with a 4x4 board and sets the running state to true.
      */
-    Game::Game() : board_(4), isRunning_(true) {}
+    Game::Game() : board_(4), isRunning_(true) {
+        aiAgent_ = std::make_unique<tfe::ai::ExpectimaxAgent>();
+    }
 
     /**
      * @brief Runs the main game loop for the console version.
@@ -30,28 +34,39 @@ namespace tfe::game {
                 needRender = false;
             }
 
-            // 1. Render the current board state.
-            tfe::renderer::ConsoleRenderer::render(board_);
-
-            // 2. Check for game over condition.
+            // Check for game over condition.
             if (board_.isGameOver()) {
                 tfe::score::ScoreManager::save_game(board_.getScore(), board_.hasWon());
                 tfe::renderer::ConsoleRenderer::showGameOver();
                 // Wait for any key press to exit or handle restart logic.
-                // For now, it just exits.
                 tfe::input::InputHandler::readInput();
                 break;
             }
 
-            // 3. Read user input.
-            const auto command = tfe::input::InputHandler::readInput();
+            // Read user input. If AI mode is on, use a timeout (100ms) to allow for interruption.
+            // If AI mode is off, block indefinitely.
+            tfe::input::InputHandler::InputCommand command;
+            if (isAiMode_) {
+                command = tfe::input::InputHandler::readInput(100);
+            } else {
+                command = tfe::input::InputHandler::readInput(-1);
+            }
 
-            // 4. Update game logic based on input.
+            // Update game logic based on input.
             bool moved = false;
+
+            // Handle Global Commands first
+            if (command == input::InputHandler::InputCommand::Quit) {
+                isRunning_ = false;
+                break;
+            }
+            if (command == input::InputHandler::InputCommand::ToggleAutoPlay) {
+                isAiMode_ = !isAiMode_;
+                continue; // Skip the rest of the loop to process the toggle immediately
+            }
+
+            // Handle Move Commands
             switch (command) {
-                case input::InputHandler::InputCommand::Quit:
-                    isRunning_ = false;
-                    break;
                 case input::InputHandler::InputCommand::MoveUp:
                     moved = board_.move(core::Direction::Up);
                     break;
@@ -64,9 +79,16 @@ namespace tfe::game {
                 case input::InputHandler::InputCommand::MoveRight:
                     moved = board_.move(core::Direction::Right);
                     break;
+                case input::InputHandler::InputCommand::None:
+                    // If no user input and AI mode is ON, let AI play
+                    if (isAiMode_) {
+                        auto bestMove = aiAgent_->getBestMove(board_.getState().board);
+                        if (bestMove) {
+                            moved = board_.move(*bestMove);
+                        }
+                    }
+                    break;
                 default:
-                    // If the user presses an invalid key or a move doesn't change the board,
-                    // the loop will simply re-render and wait for the next input.
                     break;
             }
 

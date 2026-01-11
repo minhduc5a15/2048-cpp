@@ -2,6 +2,8 @@
 #include "../core/board.h"
 #include "../input/input-handler.h"
 #include "../renderer/console-renderer.h"
+#include "../ai/expectimax_agent.h"
+#include <memory>
 
 namespace tfe::game {
 
@@ -28,7 +30,9 @@ namespace tfe::game {
         tfe::core::Board board_;
         tfe::input::InputHandler inputHandler_;
         tfe::renderer::ConsoleRenderer renderer_;
+        std::unique_ptr<tfe::ai::Agent> aiAgent_;
         bool isRunning_;
+        bool isAiMode_ = false;
     };
 
 }  // namespace tfe::game

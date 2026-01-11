@@ -8,6 +8,10 @@ namespace tfe::utils {
         return engine;
     }
 
+    void RandomGenerator::seed(unsigned int seed) {
+        getEngine().seed(seed);
+    }
+
     int RandomGenerator::getInt(const int min, const int max) {
         std::uniform_int_distribution<int> dist(min, max);
         return dist(getEngine());

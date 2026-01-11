@@ -16,13 +16,14 @@ namespace tfe::input {
         ~InputHandler();
 
         // Enum representing the high-level commands that can be issued by the user.
-        enum class InputCommand { None, MoveUp, MoveDown, MoveLeft, MoveRight, Quit };
+        enum class InputCommand { None, MoveUp, MoveDown, MoveLeft, MoveRight, Quit, ToggleAutoPlay };
 
         /**
          * @brief Reads and interprets the next keyboard input from the user.
-         * @return The corresponding InputCommand for the key that was pressed.
+         * @param timeout_ms The maximum time to wait for input in milliseconds. -1 means wait indefinitely.
+         * @return The corresponding InputCommand for the key that was pressed, or None if timed out.
          */
-        static InputCommand readInput();
+        static InputCommand readInput(long timeout_ms = -1);
 
     private:
         /**

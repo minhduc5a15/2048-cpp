@@ -6,6 +6,9 @@ namespace tfe::utils {  // tfe = twenty-four-eight
     // A static utility class for generating random numbers.
     class RandomGenerator {
     public:
+        // Seeds the random number generator for deterministic behavior.
+        static void seed(unsigned int seed);
+
         // Returns a random integer in the inclusive range [min, max].
         static int getInt(int min, int max);
 

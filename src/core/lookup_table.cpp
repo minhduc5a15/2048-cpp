@@ -11,8 +11,8 @@ namespace tfe::core {
     int LookupTable::scoreTable[65536];
     float LookupTable::heuristicTable[65536];
 
-    // Các trọng số Heuristic (tham khảo từ nneonneo)
-    // Sau này chúng ta sẽ dùng RL để tinh chỉnh các số này
+    // Heuristic weights (referenced from nneonneo/2048-ai)
+    // In the future, we can use Reinforcement Learning (RL) to fine-tune these values.
     static const float SCORE_LOST_PENALTY = 200000.0f;
     static const float SCORE_MONOTONICITY_POWER = 4.0f;
     static const float SCORE_MONOTONICITY_WEIGHT = 47.0f;
@@ -54,7 +54,7 @@ namespace tfe::core {
     void LookupTable::initRow(int row) {
         auto line = unpack(row);
 
-        // 1. Tính Heuristic Score (Đánh giá độ tốt của hàng này)
+        // 1. Calculate Heuristic Score (Evaluate the quality of this row)
         float sum = 0;
         int empty = 0;
         int merges = 0;
@@ -88,22 +88,22 @@ namespace tfe::core {
         heuristicTable[row] = SCORE_LOST_PENALTY + SCORE_EMPTY_WEIGHT * empty + SCORE_MERGES_WEIGHT * merges -
                               SCORE_MONOTONICITY_WEIGHT * std::min(mono_left, mono_right) - SCORE_SUM_WEIGHT * sum;
 
-        // 2. Tính Move Left Logic
+        // 2. Calculate Move Left Logic
         int score = 0;
         std::vector<int> temp;
         for (int val : line)
-            if (val != 0) temp.push_back(val);  // Dồn
+            if (val != 0) temp.push_back(val);  // Compress
 
         if (!temp.empty()) {
             for (size_t i = 0; i < temp.size() - 1; ++i) {
-                if (temp[i] == temp[i + 1]) {  // Gộp
+                if (temp[i] == temp[i + 1]) {  // Merge
                     temp[i]++;
-                    score += (1 << temp[i]);  // Cộng điểm thực (2^k)
+                    score += (1 << temp[i]);  // Add actual score (2^k)
                     temp.erase(temp.begin() + i + 1);
                 }
             }
         }
-        while (temp.size() < 4) temp.push_back(0);  // Điền 0
+        while (temp.size() < 4) temp.push_back(0);  // Pad with 0
 
         moveLeftTable[row] = pack(temp);
         scoreTable[row] = score;

@@ -3,6 +3,7 @@
 #include "raylib.h"
 #include "score/score-manager.h"
 #include "theme.h"
+#include "ai/expectimax_agent.h"
 
 namespace tfe::gui {
 
@@ -11,6 +12,7 @@ namespace tfe::gui {
         if (const auto state = tfe::core::GameSaver::load(); state.has_value()) {
             board_.loadState(*state);
         }
+        aiAgent_ = std::make_unique<tfe::ai::ExpectimaxAgent>();
     }
 
     void GuiGame::run() {
@@ -28,6 +30,10 @@ namespace tfe::gui {
             DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(Theme::BG_COLOR, 0.8f));
             DrawText("GAME OVER", 80, 250, 60, Theme::TEXT_DARK);
             DrawText("Press ENTER to Restart", 120, 320, 20, Theme::TEXT_DARK);
+        }
+
+        if (isAiActive_ && !isGameOver_) {
+             DrawText("AI ACTIVE (Press P to Stop)", 10, 10, 20, RED);
         }
 
         if (showExitPrompt_ && !isGameOver_) {
@@ -88,24 +94,41 @@ namespace tfe::gui {
             return;
         }
 
-        bool pressed = false;
-        if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
-            currentMoveDirection_ = tfe::core::Direction::Up;
-            pressed = true;
-        } else if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
-            currentMoveDirection_ = tfe::core::Direction::Down;
-            pressed = true;
-        } else if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
-            currentMoveDirection_ = tfe::core::Direction::Left;
-            pressed = true;
-        } else if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
-            currentMoveDirection_ = tfe::core::Direction::Right;
-            pressed = true;
+        // Toggle AI
+        if (IsKeyPressed(KEY_P)) {
+            isAiActive_ = !isAiActive_;
         }
 
-        if (pressed) {
-            board_.move(currentMoveDirection_);
-            if (board_.isGameOver()) return;
+        // AI Move Logic
+        if (isAiActive_ && !renderer_.isAnimating()) {
+            auto bestMove = aiAgent_->getBestMove(board_.getState().board);
+            if (bestMove.has_value()) {
+                currentMoveDirection_ = *bestMove;
+                board_.move(currentMoveDirection_);
+                if (board_.isGameOver()) return;
+            }
+        }
+
+        bool pressed = false;
+        if (!isAiActive_) {
+            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+                currentMoveDirection_ = tfe::core::Direction::Up;
+                pressed = true;
+            } else if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+                currentMoveDirection_ = tfe::core::Direction::Down;
+                pressed = true;
+            } else if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
+                currentMoveDirection_ = tfe::core::Direction::Left;
+                pressed = true;
+            } else if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+                currentMoveDirection_ = tfe::core::Direction::Right;
+                pressed = true;
+            }
+
+            if (pressed) {
+                board_.move(currentMoveDirection_);
+                if (board_.isGameOver()) return;
+            }
         }
     }
 
