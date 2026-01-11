@@ -8,14 +8,29 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 add_executable(unit_tests
-
     board-test.cpp
-
     bitboard_ops_tests.cpp
-
 )
 
-target_link_libraries(unit_tests PRIVATE core GTest::gtest_main)
+target_link_libraries(unit_tests
+        PRIVATE
+        core
+        ai
+        gtest_main
+        gmock_main
+)
+
+add_executable(ntuple_index_tests
+    ntuple_index_tests.cpp
+)
+
+target_link_libraries(ntuple_index_tests
+        PRIVATE
+        core
+        rl
+        gtest_main
+        gmock_main
+)
 
 include(GoogleTest)
 gtest_discover_tests(unit_tests)
