@@ -8,13 +8,22 @@
 #include "transposition_table.h"
 
 namespace tfe::core {
-
+    static inline Bitboard transpose64(const Bitboard x) {
+        const Bitboard a1 = x & 0xF0F00F0FF0F00F0FULL;
+        const Bitboard a2 = x & 0x0000F0F00000F0F0ULL;
+        const Bitboard a3 = x & 0x0F0F00000F0F0000ULL;
+        const Bitboard a = a1 | (a2 << 12) | (a3 >> 12);
+        const Bitboard b1 = a & 0xFF00FF0000FF00FFULL;
+        const Bitboard b2 = a & 0x00FF00FF00000000ULL;
+        const Bitboard b3 = a & 0x00000000FF00FF00ULL;
+        return b1 | (b2 >> 24) | (b3 << 24);
+    }
     /**
      * @brief Extracts a column from the bitboard and packs it into a 16-bit row format.
-     * 
+     *
      * This allows us to use row-based lookup tables for column evaluation without
      * needing to transpose the entire board.
-     * 
+     *
      * @param board The 64-bit board.
      * @param c The column index (0-3).
      * @return 16-bit integer representing the column tiles.
@@ -22,7 +31,7 @@ namespace tfe::core {
     static inline Row extractColumn(const Bitboard board, const int c) {
         // Mask out the specific column bits and shift them to positions 0, 12, 24, 36...
         uint64_t ret = (board >> c) & 0x000F000F000F000FULL;
-        
+
         // Compact the bits into the lower 16 bits
         ret |= (ret >> 12);
         ret |= (ret >> 24);
@@ -31,7 +40,7 @@ namespace tfe::core {
 
     float AISolver::evaluateBoard(const Bitboard board) {
         float score = 0;
-        
+
         // 1. Evaluate Rows (Horizontal patterns)
         for (int i = 0; i < 64; i += 16) score += LookupTable::heuristicTable[(board >> i) & 0xFFFF];
 
@@ -63,22 +72,25 @@ namespace tfe::core {
 
     Direction AISolver::findBestMove(const Board& board) {
         const Bitboard currentBoard = board.getState().board;
+
+        // Khởi tạo bestMove là một hướng bất kỳ, nhưng quan trọng là bestScore phải cực nhỏ
         auto bestMove = Direction::Up;
         float bestScore = -std::numeric_limits<float>::max();
 
         TranspositionTable::instance().clear();
 
-        // Dynamic depth calculation based on board complexity
         int distinctTiles = countDistinctTiles(currentBoard);
         int depthLimit = std::max(3, distinctTiles - 2);
 
-        // Iterate through all 4 directions
+        // Pre-calculate transposed board for Up/Down moves
+        const Bitboard currentBoardT = transpose64(currentBoard);
+
         for (const auto dir : {Direction::Up, Direction::Down, Direction::Left, Direction::Right}) {
             Bitboard nextBoard = 0;
             bool changed = false;
 
-            // --- MOVE SIMULATION (Optimized with Lookup Tables) ---
             if (dir == Direction::Left) {
+                // Giữ nguyên logic cũ
                 for (int r = 0; r < 4; ++r) {
                     const Row row = (currentBoard >> (r * 16)) & 0xFFFF;
                     const Row newRow = LookupTable::moveLeftTable[row];
@@ -86,6 +98,7 @@ namespace tfe::core {
                     nextBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
                 }
             } else if (dir == Direction::Right) {
+                // Giữ nguyên logic cũ
                 for (int r = 0; r < 4; ++r) {
                     const Row row = (currentBoard >> (r * 16)) & 0xFFFF;
                     const Row newRow = LookupTable::moveRightTable[row];
@@ -93,26 +106,32 @@ namespace tfe::core {
                     nextBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
                 }
             } else if (dir == Direction::Up) {
-                for (int c = 0; c < 4; ++c) {
-                    const Row col = extractColumn(currentBoard, c);
-                    const Bitboard newCol = LookupTable::colUpTable[col];
-                    nextBoard |= (newCol << c);
+                // --- SỬA ĐỔI: Dùng Transpose logic ---
+                // Move Up trên bàn cờ thường = Move Left trên bàn cờ đã xoay
+                Bitboard nextBoardT = 0;
+                for (int r = 0; r < 4; ++r) {
+                    const Row row = (currentBoardT >> (r * 16)) & 0xFFFF;
+                    const Row newRow = LookupTable::moveLeftTable[row];
+                    if (row != newRow) changed = true;
+                    nextBoardT |= (static_cast<Bitboard>(newRow) << (r * 16));
                 }
-                if (nextBoard != currentBoard) changed = true;
+                if (changed) nextBoard = transpose64(nextBoardT);
             } else {  // Down
-                for (int c = 0; c < 4; ++c) {
-                    const Row col = extractColumn(currentBoard, c);
-                    const Bitboard newCol = LookupTable::colDownTable[col];
-                    nextBoard |= (newCol << c);
+                // --- SỬA ĐỔI: Dùng Transpose logic ---
+                // Move Down trên bàn cờ thường = Move Right trên bàn cờ đã xoay
+                Bitboard nextBoardT = 0;
+                for (int r = 0; r < 4; ++r) {
+                    const Row row = (currentBoardT >> (r * 16)) & 0xFFFF;
+                    const Row newRow = LookupTable::moveRightTable[row];
+                    if (row != newRow) changed = true;
+                    nextBoardT |= (static_cast<Bitboard>(newRow) << (r * 16));
                 }
-                if (nextBoard != currentBoard) changed = true;
+                if (changed) nextBoard = transpose64(nextBoardT);
             }
 
             if (changed) {
-                // We moved successfully. Now evaluate this new state (Chance Node).
-                // Initial depth is 1 because we made one move.
-                // cprob is 1.0 at the root.
                 float score = expectimax(nextBoard, 1, depthLimit, false, 1.0f);
+                // Cập nhật nước đi tốt nhất dựa trên điểm số thực tế
                 if (score > bestScore) {
                     bestScore = score;
                     bestMove = dir;
@@ -149,7 +168,7 @@ namespace tfe::core {
             bool canMove = false;
 
             // Try all 4 moves. Loops unrolled for slight performance gain.
-            
+
             // LEFT
             {
                 Bitboard next = 0;
@@ -200,7 +219,7 @@ namespace tfe::core {
         // Calculates the weighted average of all possible spawn outcomes.
         float totalScore = 0;
         int emptyCount = 0;
-        
+
         // Iterate over all 16 positions
         for (int i = 0; i < 16; ++i) {
             if (((board >> (i * 4)) & 0xF) == 0) {
@@ -217,7 +236,7 @@ namespace tfe::core {
         if (emptyCount == 0) return evaluateBoard(board);
 
         const float finalScore = totalScore / emptyCount;
-        
+
         // Cache the result
         // Store with "remaining depth" logic
         TranspositionTable::instance().put(board, depthLimit - depth, finalScore);
