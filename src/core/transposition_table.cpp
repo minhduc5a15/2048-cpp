@@ -19,7 +19,13 @@ namespace tfe::core {
         // Simple hash function: Use the board state itself as the hash.
         // Since TABLE_SIZE is a power of 2, we can use a bitmask (TABLE_MASK)
         // instead of the modulo operator (%) for speed.
-        const size_t index = board & TABLE_MASK;
+        uint64_t key = board;
+        key ^= key >> 33;
+        key *= 0xff51afd7ed558ccdULL;
+        key ^= key >> 33;
+        key *= 0xc4ceb9fe1a85ec53ULL;
+        key ^= key >> 33;
+        const size_t index = key & TABLE_MASK;
         const TTEntry& entry = table_[index];
 
         // Check for Key Match (Collision check) AND Sufficient Depth
@@ -33,7 +39,13 @@ namespace tfe::core {
     }
 
     void TranspositionTable::put(Bitboard board, int depth, float score) {
-        const size_t index = board & TABLE_MASK;
+        uint64_t key = board;
+        key ^= key >> 33;
+        key *= 0xff51afd7ed558ccdULL;
+        key ^= key >> 33;
+        key *= 0xc4ceb9fe1a85ec53ULL;
+        key ^= key >> 33;
+        const size_t index = key & TABLE_MASK;
         
         // Replacement Strategy: Always Replace
         // We overwrite the existing entry at this hash index.

@@ -130,7 +130,7 @@ namespace tfe::core {
             }
 
             if (changed) {
-                float score = expectimax(nextBoard, 1, depthLimit, false, 1.0f);
+                float score = expectimax(nextBoard, 0, depthLimit, false, 1.0f);
                 // Cập nhật nước đi tốt nhất dựa trên điểm số thực tế
                 if (score > bestScore) {
                     bestScore = score;
