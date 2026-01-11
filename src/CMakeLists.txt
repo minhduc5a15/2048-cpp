@@ -3,6 +3,7 @@ add_subdirectory(platform)
 add_subdirectory(score)
 add_subdirectory(core)
 add_subdirectory(ai)
+add_subdirectory(rl)
 add_subdirectory(renderer) # Console renderer
 add_subdirectory(input)
 add_subdirectory(game)     # Console game loop
