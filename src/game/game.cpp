@@ -74,7 +74,12 @@ namespace tfe::game {
 
                 case input::InputHandler::InputCommand::AutoPlay: {
                     // Activate AI Auto-player
-                    while (!board_.isGameOver() && isRunning_) {
+                    while (isRunning_) {
+                        // Check for Game Over condition BEFORE asking AI
+                        if (board_.isGameOver()) {
+                            break;
+                        }
+
                         // AI thinks with a depth limit (12 is a reasonable balance for speed/accuracy)
                         const auto bestDir = tfe::core::AISolver::findBestMove(board_);
 
@@ -88,8 +93,8 @@ namespace tfe::game {
 
                         if (!aiMoved) {
                             // Safety check: AI shouldn't return a move that doesn't change the board
-                            isRunning_ = false;
-                            throw std::runtime_error("AI made an invalid move or got stuck. Exiting autoplay.");
+                            // If it does, stop autoplay gracefully instead of crashing.
+                            break;
                         }
                     }
                     needRender = true;
