@@ -3,6 +3,8 @@
 #include "core/game-observer.h"
 #include "core/game-saver.h"
 #include "raylib-renderer.h"
+#include "../ai/expectimax_agent.h"
+#include <memory>
 
 namespace tfe::gui {
 
@@ -39,5 +41,8 @@ namespace tfe::gui {
 
         bool showExitPrompt_ = false;
         bool shouldExitApp_ = false;
+        bool isAiActive_ = false;
+
+        std::unique_ptr<tfe::ai::Agent> aiAgent_;
     };
 }  // namespace tfe::gui

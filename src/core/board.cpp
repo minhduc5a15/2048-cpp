@@ -4,20 +4,9 @@
 #include "lookup_table.h"
 #include "score/score-manager.h"
 #include "utils/random-generator.h"
+#include "bitboard_ops.h"
 
 namespace tfe::core {
-
-    // Hàm xoay bitboard 4x4 (Transpose)
-    static inline Bitboard transpose64(Bitboard x) {
-        Bitboard a1 = x & 0xF0F00F0FF0F00F0FULL;
-        Bitboard a2 = x & 0x0000F0F00000F0F0ULL;
-        Bitboard a3 = x & 0x0F0F00000F0F0000ULL;
-        Bitboard a = a1 | (a2 << 12) | (a3 >> 12);
-        Bitboard b1 = a & 0xFF00FF0000FF00FFULL;
-        Bitboard b2 = a & 0x00FF00FF00000000ULL;
-        Bitboard b3 = a & 0x00000000FF00FF00ULL;
-        return b1 | (b2 >> 24) | (b3 << 24);
-    }
 
     Board::Board(int size) {
         static bool tableInitialized = false;
@@ -57,40 +46,16 @@ namespace tfe::core {
         board_ |= (static_cast<Bitboard>(value) << shift);
     }
 
-    void Board::transpose() { board_ = transpose64(board_); }
+    void Board::transpose() { board_ = BitboardOps::transpose64(board_); }
 
     bool Board::move(Direction dir) {
-        // Chuẩn hóa về Left/Right. Nếu Up/Down thì xoay bàn cờ
-        if (dir == Direction::Up || dir == Direction::Down) transpose();
-
-        Bitboard newBoard = 0;
-        int moveScore = 0;
-
-        for (int r = 0; r < 4; ++r) {
-            Row row = (board_ >> (r * 16)) & Config::ROW_MASK;
-            Row newRow;
-
-            // Tra bảng
-            if (dir == Direction::Left || dir == Direction::Up)
-                newRow = LookupTable::moveLeftTable[row];
-            else
-                newRow = LookupTable::moveRightTable[row];
-
-            moveScore += LookupTable::scoreTable[row];
-            newBoard |= (static_cast<Bitboard>(newRow) << (r * 16));
-        }
+        auto [newBoard, moveScore] = BitboardOps::executeMove(board_, dir);
 
         bool changed = (newBoard != board_);
         if (changed) {
             board_ = newBoard;
             score_ += moveScore;
             if (score_ > highScore_) highScore_ = score_;
-        }
-
-        // Xoay ngược lại nếu cần
-        if (dir == Direction::Up || dir == Direction::Down) transpose();
-
-        if (changed) {
             spawnRandomTile();
         }
         return changed;
@@ -114,19 +79,11 @@ namespace tfe::core {
     }
 
     bool Board::isGameOver() const {
-        // Kiểm tra hàng ngang
-        for (int r = 0; r < 4; ++r) {
-            Row row = (board_ >> (r * 16)) & 0xFFFF;
-            if (LookupTable::moveLeftTable[row] != row) return false;
-            if (LookupTable::moveRightTable[row] != row) return false;
-        }
-        // Kiểm tra hàng dọc (xoay rồi kiểm tra như hàng ngang)
-        Bitboard t = transpose64(board_);
-        for (int r = 0; r < 4; ++r) {
-            Row row = (t >> (r * 16)) & 0xFFFF;
-            if (LookupTable::moveLeftTable[row] != row) return false;
-            if (LookupTable::moveRightTable[row] != row) return false;
-        }
+        if (BitboardOps::executeMove(board_, Direction::Left).first != board_) return false;
+        if (BitboardOps::executeMove(board_, Direction::Right).first != board_) return false;
+        if (BitboardOps::executeMove(board_, Direction::Up).first != board_) return false;
+        if (BitboardOps::executeMove(board_, Direction::Down).first != board_) return false;
+        
         notifyGameOver();
         return true;
     }

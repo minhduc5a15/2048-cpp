@@ -22,9 +22,26 @@ namespace tfe::input {
         SetConsoleCursorInfo(hConsole, &cursorInfo);
     }
 
-    InputHandler::InputCommand InputHandler::readInput() {
+    InputHandler::InputCommand InputHandler::readInput(long timeout_ms) {
 
-        // _getch() blocks until a key is pressed
+        // If a timeout is specified, wait for input
+        if (timeout_ms >= 0) {
+            long elapsed = 0;
+            const long step = 10;
+            while (elapsed < timeout_ms) {
+                if (_kbhit()) break;
+                Sleep(step);
+                elapsed += step;
+            }
+            if (!_kbhit()) return InputCommand::None;
+        } else {
+            // Block indefinitely
+            while (!_kbhit()) {
+                Sleep(10);
+            }
+        }
+
+        // _getch() blocks until a key is pressed, but we know one is ready
         int c = _getch();
 
         switch (c) {
@@ -43,6 +60,9 @@ namespace tfe::input {
             case 'q':
             case 'Q':
                 return InputCommand::Quit;
+            case 'p':
+            case 'P':
+                return InputCommand::ToggleAutoPlay;
 
             // Arrow keys on Windows return two codes: 0 or 224, followed by the key code
             case 0:
@@ -89,17 +109,22 @@ namespace tfe::input {
         }
     }
 
-    InputHandler::InputCommand InputHandler::readInput() {
+    InputHandler::InputCommand InputHandler::readInput(long timeout_ms) {
         // Use select() to check for input without blocking.
         fd_set fds;
         FD_ZERO(&fds);
         FD_SET(STDIN_FILENO, &fds);
 
-        // struct timeval timeout{};
-        // timeout.tv_sec = 0;
-        // timeout.tv_usec = 0;
+        struct timeval timeout;
+        struct timeval* pTimeout = nullptr;
 
-        int ready = select(STDIN_FILENO + 1, &fds, nullptr, nullptr, nullptr);
+        if (timeout_ms >= 0) {
+            timeout.tv_sec = timeout_ms / 1000;
+            timeout.tv_usec = (timeout_ms % 1000) * 1000;
+            pTimeout = &timeout;
+        }
+
+        int ready = select(STDIN_FILENO + 1, &fds, nullptr, nullptr, pTimeout);
         if (ready <= 0) {
             // Nothing to read, or an error occurred.
             return InputCommand::None;
@@ -110,15 +135,23 @@ namespace tfe::input {
 
         switch (c) {
             case 'w':
+            case 'W':
                 return InputCommand::MoveUp;
             case 's':
+            case 'S':
                 return InputCommand::MoveDown;
             case 'a':
+            case 'A':
                 return InputCommand::MoveLeft;
             case 'd':
+            case 'D':
                 return InputCommand::MoveRight;
             case 'q':
+            case 'Q':
                 return InputCommand::Quit;
+            case 'p':
+            case 'P':
+                return InputCommand::ToggleAutoPlay;
             case '\033': {
                 char seq[2];
                 if (read(STDIN_FILENO, &seq[0], 1) == -1) return InputCommand::None;
