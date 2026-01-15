@@ -1,9 +1,10 @@
 #include "gui-game.h"
 
+#include "ai/expectimax_agent.h"
+#include "core/game-saver.h"
 #include "raylib.h"
 #include "score/score-manager.h"
 #include "theme.h"
-#include "ai/expectimax_agent.h"
 
 namespace tfe::gui {
 
@@ -28,12 +29,12 @@ namespace tfe::gui {
 
         if (isGameOver_) {
             DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(Theme::BG_COLOR, 0.8f));
-            
+
             const char* title = "GAME OVER";
             const int titleSize = 60;
             const int titleWidth = MeasureText(title, titleSize);
             DrawText(title, (GetScreenWidth() - titleWidth) / 2, GetScreenHeight() / 2 - 50, titleSize, Theme::TEXT_DARK);
-            
+
             const char* subtitle = "Press ENTER to Restart";
             const int subtitleSize = 20;
             const int subtitleWidth = MeasureText(subtitle, subtitleSize);
@@ -41,7 +42,7 @@ namespace tfe::gui {
         }
 
         if (isAiActive_ && !isGameOver_) {
-             DrawText("AI ACTIVE (Press P to Stop)", 10, 10, 20, RED);
+            DrawText("AI ACTIVE (Press P to Stop)", 10, 10, 20, RED);
         }
 
         if (showExitPrompt_ && !isGameOver_) {
@@ -109,7 +110,7 @@ namespace tfe::gui {
 
         // AI Move Logic
         if (isAiActive_ && !renderer_.isAnimating()) {
-            auto bestMove = aiAgent_->getBestMove(board_.getState().board);
+            const auto bestMove = aiAgent_->getBestMove(board_.getState().board);
             if (bestMove.has_value()) {
                 currentMoveDirection_ = *bestMove;
                 board_.move(currentMoveDirection_);
