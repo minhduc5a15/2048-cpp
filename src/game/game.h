@@ -1,9 +1,10 @@
 #pragma once
+#include <memory>
+
+#include "../ai/expectimax_agent.h"
 #include "../core/board.h"
 #include "../input/input-handler.h"
 #include "../renderer/console-renderer.h"
-#include "../ai/expectimax_agent.h"
-#include <memory>
 
 namespace tfe::game {
 

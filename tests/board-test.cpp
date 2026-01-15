@@ -14,7 +14,7 @@ void clearBoard(Board& board) {
 }
 
 TEST(BoardTest, Initialization) {
-    const Board board(4);
+    const Board board;
     EXPECT_EQ(board.getSize(), 4);
 
     int nonZeroCount = 0;
@@ -28,7 +28,7 @@ TEST(BoardTest, Initialization) {
 
 // Scenario: [2, 2, 0, 0] to Left -> [4, ?, 0, 0]
 TEST(BoardTest, MoveLeftMerge) {
-    Board board(4);
+    Board board;
     clearBoard(board);
 
     // 1 -> Exponent 1 (Value 2)
@@ -44,7 +44,7 @@ TEST(BoardTest, MoveLeftMerge) {
 
 // Scenario: [4, 2, 2, 0] to Left -> [4, 4, ?, 0]
 TEST(BoardTest, NoDoubleMerge) {
-    Board board(4);
+    Board board;
     clearBoard(board);
 
     // 2 -> Value 4, 1 -> Value 2
@@ -59,7 +59,7 @@ TEST(BoardTest, NoDoubleMerge) {
 }
 
 TEST(BoardTest, GameOverCheck) {
-    Board board(4);
+    Board board;
     
     // Fill the board with a checkerboard pattern so no merges are possible
     // 2 4 2 4
@@ -82,7 +82,7 @@ TEST(BoardTest, GameOverCheck) {
 
 // 1. Test a different move direction (Up) to ensure correct axis rotation logic
 TEST(BoardTest, MoveUpBasic) {
-    Board board(4);
+    Board board;
     clearBoard(board);
 
     // Setup:
@@ -107,7 +107,7 @@ TEST(BoardTest, MoveUpBasic) {
 
 // 2. Test merging a full row: [2, 2, 2, 2] -> [4, 4, 0, 0]
 TEST(BoardTest, MergeFullRow) {
-    Board board(4);
+    Board board;
     clearBoard(board);
 
     // Row 0: [2, 2, 2, 2]
@@ -128,7 +128,7 @@ TEST(BoardTest, MergeFullRow) {
 
 // 3. Test moving over a gap: [2, 0, 2, 0] -> [4, 0, 0, 0]
 TEST(BoardTest, MoveOverGap) {
-    Board board(4);
+    Board board;
     clearBoard(board);
 
     board.setTile(0, 0, 1); // 2
@@ -148,7 +148,7 @@ TEST(BoardTest, MoveOverGap) {
 
 // 4. Test no new tile spawns if no move is possible
 TEST(BoardTest, NoMovePossible) {
-    Board board(4);
+    Board board;
     clearBoard(board);
 
     // [4, 0, 0, 0] -> Move Left -> No change
@@ -175,7 +175,7 @@ TEST(BoardTest, NoMovePossible) {
 
 // 5. Test Reset feature
 TEST(BoardTest, ResetBoard) {
-    Board board(4);
+    Board board;
     board.setTile(0, 0, 10); // 1024 (2^10)
     board.setTile(1, 1, 9);  // 512 (2^9)
 

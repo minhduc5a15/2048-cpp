@@ -1,9 +1,8 @@
 #include "expectimax_agent.h"
 #include "core/lookup_table.h"
 #include "core/bitboard_ops.h"
+#include "core/config.h"
 #include <limits>
-#include <vector>
-#include <cmath>
 #include <algorithm>
 #include <chrono>
 
@@ -13,7 +12,7 @@ namespace tfe::ai {
 
     // --- Heuristic Evaluation ---
     // Uses pre-computed tables for speed.
-    static float evaluateBoard(Bitboard board) {
+    static float evaluateBoard(const Bitboard board) {
         float score = 0;
         // Row scores
         for (int r = 0; r < 4; ++r) {
@@ -63,13 +62,13 @@ namespace tfe::ai {
         
         Direction dirs[] = {Direction::Up, Direction::Down, Direction::Left, Direction::Right};
         
-        for (auto dir : dirs) {
+        for (const auto dir : dirs) {
             auto [newBoard, _] = BitboardOps::executeMove(board, dir);
             
             if (newBoard != board) {
                 canMove = true;
                 // Move Node -> Chance Node (same depth convention)
-                float score = scoreChanceNode(state, newBoard, depth, cprob);
+                const float score = scoreChanceNode(state, newBoard, depth, cprob);
                 if (score > bestScore) {
                     bestScore = score;
                 }
@@ -87,11 +86,11 @@ namespace tfe::ai {
     }
 
     // --- Chance Node (Random Spawn) ---
-    static float scoreChanceNode(SearchState& state, Bitboard board, int depth, float cprob) {
-        int emptyCount = BitboardOps::countEmpty(board);
+    static float scoreChanceNode(SearchState& state, const Bitboard board, const int depth, float cprob) {
+        const int emptyCount = BitboardOps::countEmpty(board);
         if (emptyCount == 0) return 0;
 
-        float p_cell = cprob / emptyCount;
+        const float p_cell = cprob / emptyCount;
         
         // Pruning optimization
         if (p_cell < state.cprobThreshold) {
@@ -105,14 +104,14 @@ namespace tfe::ai {
                 
                 // Spawn 2 (90% chance)
                 // Recursive step: Chance -> Move (depth - 1)
-                Bitboard board2 = board | (static_cast<Bitboard>(1) << (i * 4));
-                float s2 = scoreMoveNode(state, board2, depth - 1, p_cell * 0.9f);
+                const Bitboard board2 = board | (static_cast<Bitboard>(1) << (i * 4));
+                const float s2 = scoreMoveNode(state, board2, depth - 1, p_cell * Config::SPAWN_PROBABILITY_2);
                 
                 // Spawn 4 (10% chance)
-                Bitboard board4 = board | (static_cast<Bitboard>(2) << (i * 4));
-                float s4 = scoreMoveNode(state, board4, depth - 1, p_cell * 0.1f);
+                const Bitboard board4 = board | (static_cast<Bitboard>(2) << (i * 4));
+                const float s4 = scoreMoveNode(state, board4, depth - 1, p_cell * (1.0f - Config::SPAWN_PROBABILITY_2));
                 
-                totalScore += 0.9f * s2 + 0.1f * s4;
+                totalScore += Config::SPAWN_PROBABILITY_2 * s2 + (1.0f - Config::SPAWN_PROBABILITY_2) * s4;
             }
         }
 
@@ -157,15 +156,15 @@ namespace tfe::ai {
         for (int depth = 1; depth <= targetDepth; ++depth) {
             
             float currentDepthBestScore = -std::numeric_limits<float>::infinity();
-            Direction currentDepthBestMove = Direction::Up;
+            auto currentDepthBestMove = Direction::Up;
             bool validMoveFoundAtThisDepth = false;
 
-            for (auto dir : dirs) {
+            for (const auto dir : dirs) {
                 auto [newBoard, _] = BitboardOps::executeMove(board, dir);
                 if (newBoard != board) {
                     
                     // Root always has probability 1.0
-                    float score = scoreChanceNode(state, newBoard, depth, 1.0f);
+                    const float score = scoreChanceNode(state, newBoard, depth, 1.0f);
                     
                     if (score > currentDepthBestScore) {
                         currentDepthBestScore = score;
@@ -182,7 +181,7 @@ namespace tfe::ai {
 
             // Time Budget Check
             auto now = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
+            const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
             if (duration > TIME_BUDGET_MS) {
                 break; 
             }

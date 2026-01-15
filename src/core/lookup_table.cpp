@@ -6,34 +6,36 @@
 
 namespace tfe::core {
 
-    Row LookupTable::moveLeftTable[65536];
-    Row LookupTable::moveRightTable[65536];
-    int LookupTable::scoreTable[65536];
-    float LookupTable::heuristicTable[65536];
+    constexpr int ROW_TABLE_SIZE = 65536;
+
+    Row LookupTable::moveLeftTable[ROW_TABLE_SIZE];
+    Row LookupTable::moveRightTable[ROW_TABLE_SIZE];
+    int LookupTable::scoreTable[ROW_TABLE_SIZE];
+    float LookupTable::heuristicTable[ROW_TABLE_SIZE];
 
     // Heuristic weights (referenced from nneonneo/2048-ai)
     // In the future, we can use Reinforcement Learning (RL) to fine-tune these values.
-    static const float SCORE_LOST_PENALTY = 200000.0f;
-    static const float SCORE_MONOTONICITY_POWER = 4.0f;
-    static const float SCORE_MONOTONICITY_WEIGHT = 47.0f;
-    static const float SCORE_SUM_POWER = 3.5f;
-    static const float SCORE_SUM_WEIGHT = 11.0f;
-    static const float SCORE_MERGES_WEIGHT = 700.0f;
-    static const float SCORE_EMPTY_WEIGHT = 270.0f;
+    static constexpr float SCORE_LOST_PENALTY = 200000.0f;
+    static constexpr float SCORE_MONOTONICITY_POWER = 4.0f;
+    static constexpr float SCORE_MONOTONICITY_WEIGHT = 47.0f;
+    static constexpr float SCORE_SUM_POWER = 3.5f;
+    static constexpr float SCORE_SUM_WEIGHT = 11.0f;
+    static constexpr float SCORE_MERGES_WEIGHT = 700.0f;
+    static constexpr float SCORE_EMPTY_WEIGHT = 270.0f;
 
-    static Row reverseRow(Row row) { return (row >> 12) | ((row >> 4) & 0x00F0) | ((row << 4) & 0x0F00) | (row << 12); }
+    static Row reverseRow(const Row row) { return (row >> 12) | ((row >> 4) & 0x00F0) | ((row << 4) & 0x0F00) | (row << 12); }
 
     void LookupTable::init() {
-        for (int i = 0; i < 65536; ++i) {
+        for (int i = 0; i < ROW_TABLE_SIZE; ++i) {
             initRow(i);
         }
         // Second pass for moveRightTable to ensure moveLeftTable is fully populated
-        for (int i = 0; i < 65536; ++i) {
+        for (int i = 0; i < ROW_TABLE_SIZE; ++i) {
             moveRightTable[i] = reverseRow(moveLeftTable[reverseRow(i)]);
         }
     }
 
-    static std::vector<int> unpack(int row) {
+    static std::vector<int> unpack(const int row) {
         std::vector<int> line(4);
         line[0] = (row >> 0) & 0xF;
         line[1] = (row >> 4) & 0xF;
@@ -51,8 +53,8 @@ namespace tfe::core {
         return row;
     }
 
-    void LookupTable::initRow(int row) {
-        auto line = unpack(row);
+    void LookupTable::initRow(const int row) {
+        const auto line = unpack(row);
 
         // 1. Calculate Heuristic Score (Evaluate the quality of this row)
         float sum = 0;
@@ -61,7 +63,7 @@ namespace tfe::core {
         int prev = 0;
         int counter = 0;
 
-        for (int val : line) {
+        for (const int val : line) {
             sum += std::pow(val, SCORE_SUM_POWER);
             if (val == 0) {
                 empty++;

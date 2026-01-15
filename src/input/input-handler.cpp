@@ -23,6 +23,14 @@ namespace tfe::input {
     }
 
     InputHandler::InputCommand InputHandler::readInput(long timeout_ms) {
+        
+        // Windows Arrow Key Codes
+        enum WinKey {
+            ARROW_UP = 72,
+            ARROW_DOWN = 80,
+            ARROW_LEFT = 75,
+            ARROW_RIGHT = 77
+        };
 
         // If a timeout is specified, wait for input
         if (timeout_ms >= 0) {
@@ -69,13 +77,13 @@ namespace tfe::input {
             case 224: {
                 int arrow = _getch();
                 switch (arrow) {
-                    case 72:
+                    case ARROW_UP:
                         return InputCommand::MoveUp;  // Up
-                    case 80:
+                    case ARROW_DOWN:
                         return InputCommand::MoveDown;  // Down
-                    case 75:
+                    case ARROW_LEFT:
                         return InputCommand::MoveLeft;  // Left
-                    case 77:
+                    case ARROW_RIGHT:
                         return InputCommand::MoveRight;  // Right
                 }
                 return InputCommand::None;

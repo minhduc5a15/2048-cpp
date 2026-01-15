@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     std::mt19937 moveRng(54321);
     std::uniform_int_distribution<int> dist(0, 3);
 
-    tfe::core::Board board(4);
+    tfe::core::Board board;
     
     uint64_t rollingHash = 0;
     

@@ -7,7 +7,7 @@
 
 namespace tfe::gui {
 
-    GuiGame::GuiGame() : board_(4), renderer_(), isGameOver_(false), currentMoveDirection_(tfe::core::Direction::Up) {
+    GuiGame::GuiGame() : board_(), renderer_(), isGameOver_(false), currentMoveDirection_(tfe::core::Direction::Up) {
         board_.addObserver(this);
         if (const auto state = tfe::core::GameSaver::load(); state.has_value()) {
             board_.loadState(*state);
@@ -28,8 +28,16 @@ namespace tfe::gui {
 
         if (isGameOver_) {
             DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(Theme::BG_COLOR, 0.8f));
-            DrawText("GAME OVER", 80, 250, 60, Theme::TEXT_DARK);
-            DrawText("Press ENTER to Restart", 120, 320, 20, Theme::TEXT_DARK);
+            
+            const char* title = "GAME OVER";
+            const int titleSize = 60;
+            const int titleWidth = MeasureText(title, titleSize);
+            DrawText(title, (GetScreenWidth() - titleWidth) / 2, GetScreenHeight() / 2 - 50, titleSize, Theme::TEXT_DARK);
+            
+            const char* subtitle = "Press ENTER to Restart";
+            const int subtitleSize = 20;
+            const int subtitleWidth = MeasureText(subtitle, subtitleSize);
+            DrawText(subtitle, (GetScreenWidth() - subtitleWidth) / 2, GetScreenHeight() / 2 + 20, subtitleSize, Theme::TEXT_DARK);
         }
 
         if (isAiActive_ && !isGameOver_) {

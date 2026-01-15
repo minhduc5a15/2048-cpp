@@ -11,7 +11,7 @@ namespace tfe::game {
      *
      * Initializes the game with a 4x4 board and sets the running state to true.
      */
-    Game::Game() : board_(4), isRunning_(true) {
+    Game::Game() : board_(), isRunning_(true) {
         aiAgent_ = std::make_unique<tfe::ai::ExpectimaxAgent>();
     }
 

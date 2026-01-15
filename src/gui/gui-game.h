@@ -1,10 +1,10 @@
 #pragma once
+#include <memory>
+
+#include "../ai/expectimax_agent.h"
 #include "core/board.h"
 #include "core/game-observer.h"
-#include "core/game-saver.h"
 #include "raylib-renderer.h"
-#include "../ai/expectimax_agent.h"
-#include <memory>
 
 namespace tfe::gui {
 
@@ -32,7 +32,7 @@ namespace tfe::gui {
         void update();
         void draw() const;
 
-        static void drawExitDialog() ;
+        static void drawExitDialog();
 
         tfe::core::Board board_;
         RaylibRenderer renderer_;

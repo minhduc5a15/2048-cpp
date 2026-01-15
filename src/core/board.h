@@ -8,17 +8,15 @@ namespace tfe::core {
 
     class Board {
     public:
-        explicit Board(int size = 4);
+        Board();
         void reset();
 
         int getSize() const { return 4; }
 
-        // Chuyển đổi Bitboard thành Grid vector để GUI vẽ
         Grid getGrid() const;
 
-        // Lấy giá trị số mũ tại ô (r, c)
         Tile getTile(int row, int col) const;
-        void setTile(int row, int col, Tile value);  // value là số mũ
+        void setTile(int row, int col, Tile value);
 
         bool move(Direction dir);
         void spawnRandomTile();
@@ -37,7 +35,7 @@ namespace tfe::core {
         void loadState(const GameState& state);
 
     private:
-        Bitboard board_ = 0;  // Biến duy nhất chứa dữ liệu bàn cờ!
+        Bitboard board_ = 0;
         int score_ = 0;
         int highScore_ = 0;
         bool hasReachedWinTile_ = false;

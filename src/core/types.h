@@ -21,6 +21,5 @@ namespace tfe::core {
     struct GameState {
         Bitboard board;
         int score;
-        // Các biến khác như idGrid tạm thời bỏ qua ở Core AI để tối ưu tốc độ
     };
 }  // namespace tfe::core
