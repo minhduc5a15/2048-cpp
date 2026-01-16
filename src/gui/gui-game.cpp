@@ -149,29 +149,15 @@ namespace tfe::gui {
     }
 
     void GuiGame::onTileMerge(const int r, const int c, const tfe::core::Tile newValue) {
-        // The event coordinates from the Board are relative to a "move left" operation.
-        if (currentMoveDirection_ == tfe::core::Direction::Up) {
-            renderer_.triggerMerge(c, r, newValue);
-        } else if (currentMoveDirection_ == tfe::core::Direction::Down) {
-            renderer_.triggerMerge(3 - c, r, newValue);
-        } else if (currentMoveDirection_ == tfe::core::Direction::Right) {
-            renderer_.triggerMerge(r, 3 - c, newValue);
-        } else {  // Left
-            renderer_.triggerMerge(r, c, newValue);
-        }
+        // Core sends physical coordinates (r, c) and raw exponent.
+        // Convert exponent to display value: 11 -> 2048.
+        renderer_.triggerMerge(r, c, (1 << newValue));
     }
 
     void GuiGame::onTileMove(const int fromR, const int fromC, const int toR, const int toC, const tfe::core::Tile value) {
-        // The event coordinates from the Board are relative to a "move left" operation.
-        if (currentMoveDirection_ == tfe::core::Direction::Up) {
-            renderer_.addMovingTile(value, 0, fromC, fromR, toC, toR);
-        } else if (currentMoveDirection_ == tfe::core::Direction::Down) {
-            renderer_.addMovingTile(value, 0, 3 - fromC, fromR, 3 - toC, toR);
-        } else if (currentMoveDirection_ == tfe::core::Direction::Right) {
-            renderer_.addMovingTile(value, 0, fromR, 3 - fromC, toR, 3 - toC);
-        } else {  // Left
-            renderer_.addMovingTile(value, 0, fromR, fromC, toR, toC);
-        }
+        // Core sends physical coordinates. No rotation needed in GUI.
+        // Convert exponent to display value.
+        renderer_.addMovingTile((1 << value), 0, fromR, fromC, toR, toC);
     }
 
     void GuiGame::onGameOver() {

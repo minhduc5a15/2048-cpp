@@ -1,6 +1,7 @@
 #include "board.h"
 
 #include <array>
+#include <vector>
 
 #include "bitboard_ops.h"
 #include "config.h"
@@ -58,16 +59,163 @@ namespace tfe::core {
     void Board::transpose() { board_ = BitboardOps::transpose64(board_); }
 
     bool Board::move(const Direction dir) {
+        // 1. Calculate the final state using the optimized BitboardOps (Source of Truth).
+        // This ensures the game logic remains absolutely correct and efficient.
         auto [newBoard, moveScore] = BitboardOps::executeMove(board_, dir);
 
-        const bool changed = (newBoard != board_);
-        if (changed) {
-            board_ = newBoard;
-            score_ += moveScore;
-            if (score_ > highScore_) highScore_ = score_;
-            spawnRandomTile();
+        // If the board hasn't changed, the move is invalid.
+        if (newBoard == board_) {
+            return false;
         }
-        return changed;
+
+        // 2. Simulate the move tile-by-tile to generate Animation Events.
+        // BitboardOps gives us the result, but not the "path" of each tile.
+        // We reconstruct the path here to notify the GUI.
+
+        // Helper struct to track the simulation state of a single line
+        struct MergedTile {
+            Tile val;     // Current Exponent
+            bool merged;  // Has this tile already merged in this step?
+        };
+
+        for (int line = 0; line < 4; ++line) {
+            std::vector<MergedTile> virtualLine;
+            virtualLine.reserve(4);
+
+            // Iterate through positions in the line (0..3).
+            // "pos" implies the distance from the wall we are moving towards.
+            // pos=0 is the wall. pos=3 is the farthest tile.
+            for (int pos = 0; pos < 4; ++pos) {
+                int r, c;
+
+                // Map abstract (line, pos) to physical (r, c) based on Direction
+                switch (dir) {
+                    case Direction::Left:
+                        r = line;
+                        c = pos;
+                        break;
+                    case Direction::Right:
+                        r = line;
+                        c = 3 - pos;
+                        break;
+                    case Direction::Up:
+                        r = pos;
+                        c = line;
+                        break;
+                    case Direction::Down:
+                        r = 3 - pos;
+                        c = line;
+                        break;
+                    default:
+                        r = 0;
+                        c = 0;
+                        break;  // Should not happen
+                }
+
+                const Tile currentExp = getTile(r, c);
+                if (currentExp == 0) continue;
+
+                // Move/Merge Logic
+                bool merged = false;
+                if (!virtualLine.empty()) {
+                    auto& last = virtualLine.back();
+                    if (last.val == currentExp && !last.merged) {
+                        // MERGE
+                        last.val++;  // Increment exponent (2^k -> 2^(k+1))
+                        last.merged = true;
+                        merged = true;
+
+                        // Calculate Destination Coordinates
+                        const int destIdx = static_cast<int>(virtualLine.size()) - 1;
+                        int destR, destC;
+                        switch (dir) {
+                            case Direction::Left:
+                                destR = line;
+                                destC = destIdx;
+                                break;
+                            case Direction::Right:
+                                destR = line;
+                                destC = 3 - destIdx;
+                                break;
+                            case Direction::Up:
+                                destR = destIdx;
+                                destC = line;
+                                break;
+                            case Direction::Down:
+                                destR = 3 - destIdx;
+                                destC = line;
+                                break;
+                            default:
+                                destR = 0;
+                                destC = 0;
+                                break;
+                        }
+
+                                                // Notify: Tile moved from (r,c) to (destR, destC) AND then merged
+
+                                                // FIX: Send raw exponent, remove (1 << ...) to prevent overflow
+
+                                                notifyTileMove(r, c, destR, destC, currentExp);
+
+                                                notifyTileMerge(destR, destC, last.val);
+
+                                            }
+
+                                        }
+
+                        
+
+                                        if (!merged) {
+
+                                            // SLIDE (No Merge)
+
+                                            virtualLine.push_back({currentExp, false});
+
+                                            
+
+                                            int destIdx = static_cast<int>(virtualLine.size()) - 1;
+
+                                            
+
+                                            // Only notify if the tile actually changed coordinates
+
+                                            if (destIdx != pos) {
+
+                                                int destR, destC;
+
+                                                switch (dir) {
+
+                                                    case Direction::Left:  destR = line; destC = destIdx; break;
+
+                                                    case Direction::Right: destR = line; destC = 3 - destIdx; break;
+
+                                                    case Direction::Up:    destR = destIdx; destC = line; break;
+
+                                                    case Direction::Down:  destR = 3 - destIdx; destC = line; break;
+
+                                                    default: destR = 0; destC = 0; break;
+
+                                                }
+
+                                                
+
+                                                // FIX: Send raw exponent
+
+                                                notifyTileMove(r, c, destR, destC, currentExp);
+
+                                            }
+
+                                        }
+            }
+        }
+
+        // 3. Commit the state
+        board_ = newBoard;
+        score_ += moveScore;
+        if (score_ > highScore_) highScore_ = score_;
+
+        spawnRandomTile();
+        return true;
     }
 
     void Board::spawnRandomTile() {
@@ -123,7 +271,7 @@ namespace tfe::core {
     void Board::notifyTileMove(const int fromR, const int fromC, const int toR, const int toC, const Tile value) const {
         for (auto* o : observers_) o->onTileMove(fromR, fromC, toR, toC, value);
     }
-    void Board::notifyTileMerge(int r, int c, Tile v) const {
-        for (auto* o : observers_) o->onTileMerge(r, c, v);
+    void Board::notifyTileMerge(const int r, const int c, const Tile newValue) const {
+        for (auto* o : observers_) o->onTileMerge(r, c, newValue);
     }
 }  // namespace tfe::core
