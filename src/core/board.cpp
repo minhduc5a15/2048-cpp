@@ -151,61 +151,56 @@ namespace tfe::core {
                                 break;
                         }
 
-                                                // Notify: Tile moved from (r,c) to (destR, destC) AND then merged
+                        // Notify: Tile moved from (r,c) to (destR, destC) AND then merged
 
-                                                // FIX: Send raw exponent, remove (1 << ...) to prevent overflow
+                        notifyTileMove(r, c, destR, destC, currentExp);
 
-                                                notifyTileMove(r, c, destR, destC, currentExp);
+                        notifyTileMerge(destR, destC, last.val);
+                    }
+                }
 
-                                                notifyTileMerge(destR, destC, last.val);
+                if (!merged) {
+                    // SLIDE (No Merge)
 
-                                            }
+                    virtualLine.push_back({currentExp, false});
 
-                                        }
+                    const int destIdx = static_cast<int>(virtualLine.size()) - 1;
 
-                        
+                    // Only notify if the tile actually changed coordinates
 
-                                        if (!merged) {
+                    if (destIdx != pos) {
+                        int destR, destC;
 
-                                            // SLIDE (No Merge)
+                        switch (dir) {
+                            case Direction::Left:
+                                destR = line;
+                                destC = destIdx;
+                                break;
 
-                                            virtualLine.push_back({currentExp, false});
+                            case Direction::Right:
+                                destR = line;
+                                destC = 3 - destIdx;
+                                break;
 
-                                            
+                            case Direction::Up:
+                                destR = destIdx;
+                                destC = line;
+                                break;
 
-                                            int destIdx = static_cast<int>(virtualLine.size()) - 1;
+                            case Direction::Down:
+                                destR = 3 - destIdx;
+                                destC = line;
+                                break;
 
-                                            
+                            default:
+                                destR = 0;
+                                destC = 0;
+                                break;
+                        }
 
-                                            // Only notify if the tile actually changed coordinates
-
-                                            if (destIdx != pos) {
-
-                                                int destR, destC;
-
-                                                switch (dir) {
-
-                                                    case Direction::Left:  destR = line; destC = destIdx; break;
-
-                                                    case Direction::Right: destR = line; destC = 3 - destIdx; break;
-
-                                                    case Direction::Up:    destR = destIdx; destC = line; break;
-
-                                                    case Direction::Down:  destR = 3 - destIdx; destC = line; break;
-
-                                                    default: destR = 0; destC = 0; break;
-
-                                                }
-
-                                                
-
-                                                // FIX: Send raw exponent
-
-                                                notifyTileMove(r, c, destR, destC, currentExp);
-
-                                            }
-
-                                        }
+                        notifyTileMove(r, c, destR, destC, currentExp);
+                    }
+                }
             }
         }
 
