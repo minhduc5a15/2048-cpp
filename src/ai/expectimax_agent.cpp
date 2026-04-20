@@ -1,10 +1,12 @@
 #include "expectimax_agent.h"
-#include "core/lookup_table.h"
-#include "core/bitboard_ops.h"
-#include "core/config.h"
-#include <limits>
+
 #include <algorithm>
 #include <chrono>
+#include <limits>
+
+#include "core/bitboard_ops.h"
+#include "core/config.h"
+#include "core/lookup_table.h"
 
 namespace tfe::ai {
 
@@ -19,7 +21,7 @@ namespace tfe::ai {
             score += LookupTable::heuristicTable[(board >> (r * 16)) & 0xFFFF];
         }
         // Column scores
-        Bitboard t = BitboardOps::transpose64(board);
+        const Bitboard t = BitboardOps::transpose64(board);
         for (int r = 0; r < 4; ++r) {
             score += LookupTable::heuristicTable[(t >> (r * 16)) & 0xFFFF];
         }
@@ -42,7 +44,7 @@ namespace tfe::ai {
         if (depth == 0) {
             return evaluateBoard(board);
         }
-        
+
         // Base case: Probability Pruning
         // If the probability of reaching this node is too low, use heuristic immediately.
         if (cprob < state.cprobThreshold) {
@@ -59,12 +61,12 @@ namespace tfe::ai {
 
         float bestScore = -std::numeric_limits<float>::infinity();
         bool canMove = false;
-        
+
         Direction dirs[] = {Direction::Up, Direction::Down, Direction::Left, Direction::Right};
-        
+
         for (const auto dir : dirs) {
             auto [newBoard, _] = BitboardOps::executeMove(board, dir);
-            
+
             if (newBoard != board) {
                 canMove = true;
                 // Move Node -> Chance Node (same depth convention)
@@ -76,7 +78,7 @@ namespace tfe::ai {
         }
 
         if (!canMove) {
-            return 0; // Game Over (or huge penalty)
+            return 0;  // Game Over (or huge penalty)
         }
 
         // Store result in Transposition Table
@@ -91,26 +93,25 @@ namespace tfe::ai {
         if (emptyCount == 0) return 0;
 
         const float p_cell = cprob / emptyCount;
-        
+
         // Pruning optimization
         if (p_cell < state.cprobThreshold) {
-            return evaluateBoard(board); 
+            return evaluateBoard(board);
         }
 
         float totalScore = 0;
-        
+
         for (int i = 0; i < 16; ++i) {
             if (((board >> (i * 4)) & 0xF) == 0) {
-                
                 // Spawn 2 (90% chance)
                 // Recursive step: Chance -> Move (depth - 1)
                 const Bitboard board2 = board | (static_cast<Bitboard>(1) << (i * 4));
                 const float s2 = scoreMoveNode(state, board2, depth - 1, p_cell * Config::SPAWN_PROBABILITY_2);
-                
+
                 // Spawn 4 (10% chance)
                 const Bitboard board4 = board | (static_cast<Bitboard>(2) << (i * 4));
                 const float s4 = scoreMoveNode(state, board4, depth - 1, p_cell * (1.0f - Config::SPAWN_PROBABILITY_2));
-                
+
                 totalScore += Config::SPAWN_PROBABILITY_2 * s2 + (1.0f - Config::SPAWN_PROBABILITY_2) * s4;
             }
         }
@@ -126,17 +127,16 @@ namespace tfe::ai {
     }
 
     std::optional<Direction> ExpectimaxAgent::getBestMove(tfe::core::Bitboard board) {
-        
         // 1. Dynamic Depth Calculation
         // Start depth is 3. Increase based on board complexity (distinct tiles).
         int distinctTiles = BitboardOps::countDistinctTiles(board);
-        int targetDepth = std::max(3, distinctTiles - 2); 
-        
+        int targetDepth = std::max(3, distinctTiles - 2);
+
         if (targetDepth > MAX_DEPTH_CAP) targetDepth = MAX_DEPTH_CAP;
 
         // 2. Setup Search Context
         auto startTime = std::chrono::high_resolution_clock::now();
-        
+
         SearchState state;
         state.transTable = &transTable_;
         state.cprobThreshold = CPROB_THRESH_BASE;
@@ -147,14 +147,13 @@ namespace tfe::ai {
             transTable_.clear();
         }
 
-        Direction bestMoveDir = Direction::Up; 
+        Direction bestMoveDir = Direction::Up;
         bool foundAnyMove = false;
 
         Direction dirs[] = {Direction::Up, Direction::Down, Direction::Left, Direction::Right};
-        
+
         // 3. Iterative Deepening Loop
         for (int depth = 1; depth <= targetDepth; ++depth) {
-            
             float currentDepthBestScore = -std::numeric_limits<float>::infinity();
             auto currentDepthBestMove = Direction::Up;
             bool validMoveFoundAtThisDepth = false;
@@ -162,10 +161,9 @@ namespace tfe::ai {
             for (const auto dir : dirs) {
                 auto [newBoard, _] = BitboardOps::executeMove(board, dir);
                 if (newBoard != board) {
-                    
                     // Root always has probability 1.0
                     const float score = scoreChanceNode(state, newBoard, depth, 1.0f);
-                    
+
                     if (score > currentDepthBestScore) {
                         currentDepthBestScore = score;
                         currentDepthBestMove = dir;
@@ -183,7 +181,7 @@ namespace tfe::ai {
             auto now = std::chrono::high_resolution_clock::now();
             const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
             if (duration > TIME_BUDGET_MS) {
-                break; 
+                break;
             }
         }
 
@@ -191,4 +189,4 @@ namespace tfe::ai {
         return bestMoveDir;
     }
 
-} // namespace tfe::ai
+}  // namespace tfe::ai

@@ -12,9 +12,10 @@ cmake-build-debug
 # OS generated
 .DS_Store
 Thumbs.db
-
 *.bin
 build.sh
 .venv
 __pycache__/
 *.pyc
+
+.cache

@@ -13,7 +13,7 @@ namespace tfe::core {
     int LookupTable::scoreTable[ROW_TABLE_SIZE];
     float LookupTable::heuristicTable[ROW_TABLE_SIZE];
 
-    // Heuristic weights (referenced from nneonneo/2048-ai)
+    // Heuristic weights
     // In the future, we can use Reinforcement Learning (RL) to fine-tune these values.
     static constexpr float SCORE_LOST_PENALTY = 200000.0f;
     static constexpr float SCORE_MONOTONICITY_POWER = 4.0f;
