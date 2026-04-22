@@ -39,7 +39,7 @@ namespace tfe::ai {
     static float scoreChanceNode(SearchState& state, Bitboard board, int depth, float cprob);
 
     // --- Max Node (Player Move) ---
-    static float scoreMoveNode(SearchState& state, Bitboard board, int depth, float cprob) {
+    static float scoreMoveNode(SearchState& state, const Bitboard board, const int depth, const float cprob) {
         // Base case: Depth limit reached
         if (depth == 0) {
             return evaluateBoard(board);
@@ -52,7 +52,7 @@ namespace tfe::ai {
         }
 
         // Transposition Table Lookup
-        if (auto it = state.transTable->find(board); it != state.transTable->end()) {
+        if (const auto it = state.transTable->find(board); it != state.transTable->end()) {
             // Only use cached result if it was searched at least as deep as we want now.
             if (it->second.depth >= depth) {
                 return it->second.score;
@@ -135,14 +135,15 @@ namespace tfe::ai {
         if (targetDepth > MAX_DEPTH_CAP) targetDepth = MAX_DEPTH_CAP;
 
         // 2. Setup Search Context
-        auto startTime = std::chrono::high_resolution_clock::now();
+        const auto startTime = std::chrono::high_resolution_clock::now();
 
-        SearchState state;
+        SearchState state{};
         state.transTable = &transTable_;
         state.cprobThreshold = CPROB_THRESH_BASE;
 
         // Reset Transposition Table periodically to prevent stale entries/memory bloat?
         // For now, we keep it as is, or we could clear it if it gets too large.
+        // This code is kinda trash. I’ll clean it up / optimize it later — for now, I’ll leave it like this.
         if (transTable_.size() > 500000) {
             transTable_.clear();
         }
